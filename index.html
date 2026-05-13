@@ -98,6 +98,8 @@ select.ss{font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:
 .items-table{width:100%;font-size:12px;border-collapse:collapse}
 .items-table td{padding:6px 14px;border-bottom:1px solid #f3f4f6;color:#374151}
 .items-table tr:last-child td{border-bottom:none}
+/* Nav badge */
+.nav-badge{background:#dc2626;color:#fff;border-radius:99px;font-size:10px;padding:1px 6px;margin-left:4px;vertical-align:middle}
 </style>
 </head>
 <body>
@@ -128,6 +130,7 @@ select.ss{font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:
     <button onclick="showTab('gastos',this)">💸 Gastos</button>
     <button onclick="showTab('stock',this)">Stock</button>
     <button onclick="showTab('mensajes',this)">WhatsApp</button>
+    <button onclick="showTab('fiado',this)" id="nav-fiado">💳 Fiado</button>
   </nav>
   <main id="content"><div class="em">Cargando...</div></main>
 </div>
@@ -161,6 +164,15 @@ select.ss{font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:
     <button class="modal-close" onclick="document.getElementById('ruta-modal').classList.remove('open')">✕</button>
     <h3>🗺 Ruta del cadete — hoy</h3>
     <div id="ruta-body"></div>
+  </div>
+</div>
+
+<!-- Modal historial fiado -->
+<div class="modal-bg" id="fiado-modal" onclick="closeModal(event)">
+  <div class="modal" style="max-width:560px">
+    <button class="modal-close" onclick="document.getElementById('fiado-modal').classList.remove('open')">✕</button>
+    <h3 id="fiado-modal-title">Historial de fiado</h3>
+    <div id="fiado-modal-body"></div>
   </div>
 </div>
 
@@ -199,6 +211,7 @@ function doLogin() {
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app').style.display='block';
     showTab('productos', document.querySelector('nav button'));
+    initAlerts();
   } else {
     const err = document.getElementById('login-err');
     err.textContent='Contrasena incorrecta'; err.style.display='block';
@@ -210,6 +223,7 @@ if (sessionStorage.getItem('nf_admin')) {
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
   showTab('productos', document.querySelector('nav button'));
+  initAlerts();
 }
 
 function showTab(tab, btn) {
@@ -222,6 +236,7 @@ function showTab(tab, btn) {
   else if (tab==='gastos')    renderGastos();
   else if (tab==='stock')     renderStock();
   else if (tab==='mensajes')  renderMensajes();
+  else if (tab==='fiado')     renderFiado();
 }
 function closeModal(e){ if(e.target.classList.contains('modal-bg')) e.target.classList.remove('open'); }
 
@@ -313,15 +328,21 @@ async function saveProduct(){
 }
 
 // ──── PEDIDOS ────────────────────────────────────────────────────────────────
-async function renderPedidos(filterDate=''){
-  let q=db.from('orders').select('*').order('created_at',{ascending:false}).limit(100);
+async function renderPedidos(filterDate='', searchCliente=''){
+  let q=db.from('orders').select('*').order('created_at',{ascending:false}).limit(200);
   if(filterDate) q=q.gte('created_at',filterDate+'T00:00:00').lte('created_at',filterDate+'T23:59:59');
-  const {data:orders}=await q;
+  const {data:allOrders}=await q;
   const today=new Date().toISOString().slice(0,10);
-  const todayOrds=orders?.filter(o=>o.created_at?.slice(0,10)===today).length||0;
-  const total=orders?.reduce((s,o)=>s+Number(o.total),0)||0;
-  const pendientes=orders?.filter(o=>o.status==='pendiente').length||0;
-  const totalHoy=orders?.filter(o=>o.created_at?.slice(0,10)===today).reduce((s,o)=>s+Number(o.total),0)||0;
+  const todayOrds=allOrders?.filter(o=>o.created_at?.slice(0,10)===today).length||0;
+  const total=allOrders?.reduce((s,o)=>s+Number(o.total),0)||0;
+  const pendientes=allOrders?.filter(o=>o.status==='pendiente').length||0;
+  const totalHoy=allOrders?.filter(o=>o.created_at?.slice(0,10)===today).reduce((s,o)=>s+Number(o.total),0)||0;
+  const sq=searchCliente.toLowerCase();
+  const orders=sq ? (allOrders||[]).filter(o=>
+    (o.nombre||'').toLowerCase().includes(sq)||
+    (o.apellido||'').toLowerCase().includes(sq)||
+    (o.telefono||'').includes(sq)
+  ) : (allOrders||[]);
   const STATUS_LIST = ['pendiente','confirmada','preparando','lista','en camino','entregada','cancelada'];
   const STATUS_BADGE = {pendiente:'bgr',confirmada:'bb',preparando:'by',lista:'bo','en camino':'btp',entregada:'bg',cancelada:'br'};
   const rows=orders?.map(o=>{
@@ -358,7 +379,8 @@ async function renderPedidos(filterDate=''){
     <div class="card">
       <div class="ch"><h2>Pedidos</h2>
         <div class="search-bar">
-          <input type="date" class="sn" style="width:auto" id="date-filter" value="${filterDate}" onchange="renderPedidos(this.value)">
+          <input placeholder="Buscar cliente..." style="width:180px" id="ped-search" value="${searchCliente}" oninput="renderPedidos(document.getElementById('date-filter').value,this.value)">
+          <input type="date" class="sn" style="width:auto" id="date-filter" value="${filterDate}" onchange="renderPedidos(this.value,document.getElementById('ped-search').value)">
           <button class="btn bto" onclick="renderPedidos('')">Ver todos</button>
           <button class="btn btp" onclick="verRuta()">🗺 Ruta cadete</button>
           <button class="btn btg" onclick="exportCSV()">⬇ CSV</button>
@@ -879,6 +901,93 @@ async function renderMensajes(){
       <table><thead><tr><th>Fecha</th><th>Contacto</th><th>Mensaje</th><th>Intención</th><th>Estado</th></tr></thead>
       <tbody>${rows}</tbody></table>
     </div>`;
+}
+
+// ──── FIADO ──────────────────────────────────────────────────────────────────
+async function renderFiado() {
+  const { data: clientes } = await db.from('fiado').select('*').order('cliente_nombre');
+  const totalDeuda = (clientes||[]).reduce((s,c) => s + Number(c.saldo), 0);
+  const conDeuda = (clientes||[]).filter(c => c.saldo > 0).length;
+  const rows = (clientes||[]).map(c => `<tr>
+    <td><strong>${c.cliente_nombre}</strong></td>
+    <td>${c.cliente_telefono||'-'}</td>
+    <td><strong style="color:${Number(c.saldo)>0?'#dc2626':'#16a34a'}">$${Number(c.saldo).toLocaleString('es-AR')}</strong></td>
+    <td>${new Date(c.updated_at).toLocaleDateString('es-AR')}</td>
+    <td style="white-space:nowrap">
+      <button class="btn bto" onclick="verMovFiado('${c.id}','${c.cliente_nombre.replace(/'/g,"\\'")}')">Historial</button>
+      <button class="btn btg" style="margin-left:4px" onclick="saldarFiado('${c.id}','${c.cliente_nombre.replace(/'/g,"\\'")}',${c.saldo})">Saldar</button>
+      <button class="btn btr" style="margin-left:4px" onclick="eliminarFiado('${c.id}','${c.cliente_nombre.replace(/'/g,"\\'")}')">✕</button>
+    </td>
+  </tr>`).join('') || '<tr><td colspan="5" class="em">Sin cuentas corrientes registradas</td></tr>';
+
+  document.getElementById('content').innerHTML = `
+    <div class="stats">
+      <div class="st"><div class="l">Clientes en fiado</div><div class="v">${clientes?.length||0}</div></div>
+      <div class="st"><div class="l">Con deuda activa</div><div class="v" style="color:#dc2626">${conDeuda}</div></div>
+      <div class="st"><div class="l">Total a cobrar</div><div class="v" style="color:#dc2626">$${totalDeuda.toLocaleString('es-AR')}</div></div>
+    </div>
+    ${conDeuda>0?`<div class="alert">💳 <strong>${conDeuda} cliente${conDeuda>1?'s':''}</strong> con saldo pendiente</div>`:''}
+    <div class="card">
+      <div class="ch"><h2>Cuentas corrientes (Fiado)</h2></div>
+      <table><thead><tr><th>Cliente</th><th>Teléfono</th><th>Saldo deudor</th><th>Último mov.</th><th>Acciones</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+}
+
+async function verMovFiado(fiadoId, nombre) {
+  document.getElementById('fiado-modal-title').textContent = 'Fiado — ' + nombre;
+  document.getElementById('fiado-modal-body').innerHTML = '<div class="em">Cargando...</div>';
+  document.getElementById('fiado-modal').classList.add('open');
+  const { data: movs } = await db.from('fiado_movimientos')
+    .select('*').eq('fiado_id', fiadoId).order('created_at', { ascending: false });
+  if (!movs?.length) {
+    document.getElementById('fiado-modal-body').innerHTML = '<div class="em">Sin movimientos</div>';
+    return;
+  }
+  const rows = movs.map(m => `<tr>
+    <td style="padding:8px 14px">${new Date(m.created_at).toLocaleString('es-AR')}</td>
+    <td style="padding:8px 14px"><span class="b ${m.tipo==='cargo'?'br':'bg'}">${m.tipo}</span></td>
+    <td style="padding:8px 14px;font-weight:700;color:${m.tipo==='cargo'?'#dc2626':'#16a34a'}">${m.tipo==='cargo'?'+':'-'}$${Number(m.monto).toLocaleString('es-AR')}</td>
+    <td style="padding:8px 14px;color:#6b7280">${m.descripcion||'-'}</td>
+  </tr>`).join('');
+  document.getElementById('fiado-modal-body').innerHTML = `
+    <table class="items-table">
+      <thead><tr style="background:#f9fafb">
+        <th style="padding:8px 14px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase">Fecha</th>
+        <th style="padding:8px 14px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase">Tipo</th>
+        <th style="padding:8px 14px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase">Monto</th>
+        <th style="padding:8px 14px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase">Descripción</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+async function saldarFiado(id, nombre, saldo) {
+  if (Number(saldo) <= 0) { alert(nombre + ' no tiene saldo pendiente.'); return; }
+  if (!confirm(`¿Registrar pago total de $${Number(saldo).toLocaleString('es-AR')} de ${nombre}?`)) return;
+  await db.from('fiado_movimientos').insert({ fiado_id: id, tipo: 'pago', monto: Number(saldo), descripcion: 'Saldo total' });
+  await db.from('fiado').update({ saldo: 0 }).eq('id', id);
+  showToast(`✅ ${nombre} saldó $${Number(saldo).toLocaleString('es-AR')}`, 'ok');
+  renderFiado();
+}
+
+async function eliminarFiado(id, nombre) {
+  if (!confirm(`¿Eliminar el registro de fiado de ${nombre}? Se borrará también el historial.`)) return;
+  await db.from('fiado').delete().eq('id', id);
+  showToast(`Fiado de ${nombre} eliminado`, 'info');
+  renderFiado();
+}
+
+// ──── ALERTAS DE STOCK EN NAV ────────────────────────────────────────────────
+async function initAlerts() {
+  const { count } = await db.from('products').select('id', { count: 'exact', head: true }).eq('stock', 0).eq('available', true);
+  if (count > 0) {
+    document.querySelectorAll('nav button').forEach(btn => {
+      if (btn.textContent.trim() === 'Productos') {
+        btn.innerHTML = `Productos <span class="nav-badge">${count}</span>`;
+      }
+    });
+  }
 }
 
 // ──── EXPORT EXCEL ──────────────────────────────────────────────────────────
