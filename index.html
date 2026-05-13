@@ -155,6 +155,15 @@ select.ss{font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:
   </div>
 </div>
 
+<!-- Modal ruta cadete -->
+<div class="modal-bg" id="ruta-modal" onclick="closeModal(event)">
+  <div class="modal" style="max-width:640px">
+    <button class="modal-close" onclick="document.getElementById('ruta-modal').classList.remove('open')">✕</button>
+    <h3>🗺 Ruta del cadete — hoy</h3>
+    <div id="ruta-body"></div>
+  </div>
+</div>
+
 <!-- Modal items pedido -->
 <div class="modal-bg" id="order-modal" onclick="closeModal(event)">
   <div class="modal">
@@ -351,6 +360,7 @@ async function renderPedidos(filterDate=''){
         <div class="search-bar">
           <input type="date" class="sn" style="width:auto" id="date-filter" value="${filterDate}" onchange="renderPedidos(this.value)">
           <button class="btn bto" onclick="renderPedidos('')">Ver todos</button>
+          <button class="btn btp" onclick="verRuta()">🗺 Ruta cadete</button>
           <button class="btn btg" onclick="exportCSV()">⬇ CSV</button>
         </div>
       </div>
@@ -447,6 +457,99 @@ async function exportCSV(){
   const csv=rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'}));
   a.download=`pedidos-${new Date().toISOString().slice(0,10)}.csv`;a.click();
+}
+
+// ──── RUTA CADETE ────────────────────────────────────────────────────────────
+const STORE_ADDRESS = 'Funes, Santa Fe, Argentina'; // actualizar con dirección real del local
+
+const STATUS_RUTA_PRIORITY = { 'en camino':0, 'lista':1, 'confirmada':2, 'preparando':3, 'pendiente':4 };
+
+async function verRuta() {
+  document.getElementById('ruta-modal').classList.add('open');
+  document.getElementById('ruta-body').innerHTML = '<div class="em">Cargando...</div>';
+
+  const today = new Date().toISOString().slice(0,10);
+  const { data: orders } = await db
+    .from('orders')
+    .select('id,order_number,nombre,apellido,telefono,domicilio,ciudad,status,delivery_type,total')
+    .neq('delivery_type','caja')
+    .neq('status','cancelada')
+    .not('domicilio','is',null)
+    .gte('created_at', today+'T00:00:00')
+    .lte('created_at', today+'T23:59:59')
+    .order('created_at', { ascending: true });
+
+  const entregas = (orders||[]).filter(o => o.domicilio?.trim());
+  if (!entregas.length) {
+    document.getElementById('ruta-body').innerHTML =
+      '<div class="em" style="padding:32px">No hay pedidos con domicilio para hoy.</div>';
+    return;
+  }
+
+  // Ordenar: en camino → lista → confirmada/preparando → pendiente → entregada al final
+  entregas.sort((a,b) => {
+    const pa = STATUS_RUTA_PRIORITY[a.status] ?? 9;
+    const pb = STATUS_RUTA_PRIORITY[b.status] ?? 9;
+    return pa - pb;
+  });
+
+  // Calcular ETAs: los ya "entregada" no cuentan, el resto suma
+  const pendientesDeEntregar = entregas.filter(o => o.status !== 'entregada');
+  let etaAcum = 0;
+
+  const STATUS_COL = { 'en camino':'btp', 'lista':'bo', 'confirmada':'bb', 'preparando':'by', 'pendiente':'bgr', 'entregada':'bg' };
+
+  const filas = entregas.map((o, i) => {
+    const entregado = o.status === 'entregada';
+    const posEnCola = entregado ? null : pendientesDeEntregar.indexOf(o) + 1;
+    if (!entregado) etaAcum = (posEnCola || 1) * 10;
+    const etaText  = entregado ? '✅ Entregado' : `~${(posEnCola||1)*10} min`;
+    const etaColor = entregado ? '#16a34a' : posEnCola===1 ? '#7c3aed' : '#374151';
+    const dir      = [o.domicilio, o.ciudad||'Funes'].filter(Boolean).join(', ');
+    return `
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f3f4f6;${entregado?'opacity:.5':''}">
+        <div style="min-width:28px;height:28px;border-radius:50%;background:${entregado?'#dcfce7':'#f3f4f6'};color:${entregado?'#16a34a':'#374151'};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">${entregado?'✓':(posEnCola||i+1)}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:13px">#${o.order_number} — ${o.nombre} ${o.apellido||''}</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">📍 ${dir}</div>
+          ${o.telefono?`<div style="font-size:11px;color:#9ca3af">${o.telefono}</div>`:''}
+        </div>
+        <div style="text-align:right;min-width:80px">
+          <span class="b ${STATUS_COL[o.status]||'bgr'}" style="display:block;margin-bottom:4px">${o.status}</span>
+          <span style="font-size:12px;font-weight:700;color:${etaColor}">${etaText}</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Construir URL de Google Maps
+  const waypoints = entregas
+    .filter(o => o.status !== 'entregada')
+    .map(o => encodeURIComponent([o.domicilio, o.ciudad||'Funes', 'Santa Fe'].filter(Boolean).join(', ')));
+
+  let mapsUrl = '';
+  if (waypoints.length === 1) {
+    mapsUrl = `https://www.google.com/maps/dir/${encodeURIComponent(STORE_ADDRESS)}/${waypoints[0]}`;
+  } else if (waypoints.length > 1) {
+    const dest = waypoints[waypoints.length - 1];
+    const mid  = waypoints.slice(0, -1).join('/');
+    mapsUrl = `https://www.google.com/maps/dir/${encodeURIComponent(STORE_ADDRESS)}/${mid}/${dest}`;
+  }
+
+  const entregados = entregas.filter(o=>o.status==='entregada').length;
+  const restantes  = entregas.length - entregados;
+
+  document.getElementById('ruta-body').innerHTML = `
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <div class="st" style="flex:1;min-width:100px;padding:12px"><div class="l">Paradas hoy</div><div class="v">${entregas.length}</div></div>
+      <div class="st" style="flex:1;min-width:100px;padding:12px"><div class="l">Pendientes</div><div class="v" style="color:#7c3aed">${restantes}</div></div>
+      <div class="st" style="flex:1;min-width:100px;padding:12px"><div class="l">Entregados</div><div class="v" style="color:#16a34a">${entregados}</div></div>
+      <div class="st" style="flex:1;min-width:100px;padding:12px"><div class="l">ETA total</div><div class="v" style="font-size:18px">${restantes*10} min</div></div>
+    </div>
+    ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" class="btn btg" style="display:block;text-align:center;padding:12px;font-size:14px;margin-bottom:16px;text-decoration:none">🗺 Abrir ruta en Google Maps</a>` : ''}
+    <div style="font-size:11px;color:#9ca3af;margin-bottom:12px">Orden sugerido (en camino → listos → confirmados → pendientes)</div>
+    ${filas}
+    ${STORE_ADDRESS.includes('Funes, Santa Fe') ? '<div style="margin-top:12px;padding:8px 12px;background:#fef9c3;border-radius:6px;font-size:11px;color:#92400e">⚠️ Dirección del local no configurada. Editá <code>STORE_ADDRESS</code> en el código con la dirección real.</div>' : ''}
+  `;
 }
 
 // ──── CAJA (POS) ─────────────────────────────────────────────────────────────
