@@ -313,10 +313,14 @@ async function renderPedidos(filterDate=''){
   const total=orders?.reduce((s,o)=>s+Number(o.total),0)||0;
   const pendientes=orders?.filter(o=>o.status==='pendiente').length||0;
   const totalHoy=orders?.filter(o=>o.created_at?.slice(0,10)===today).reduce((s,o)=>s+Number(o.total),0)||0;
+  const STATUS_LIST = ['pendiente','confirmada','preparando','lista','en camino','entregada','cancelada'];
+  const STATUS_BADGE = {pendiente:'bgr',confirmada:'bb',preparando:'by',lista:'bo','en camino':'btp',entregada:'bg',cancelada:'br'};
   const rows=orders?.map(o=>{
     const isToday=o.created_at?.slice(0,10)===today;
     const origen=o.notes?.includes('WhatsApp')?'WA':o.delivery_type==='caja'?'Caja':'Web';
     const origenBadge=origen==='WA'?'bg':origen==='Caja'?'bo':'bb';
+    const hasTel=!!(o.telefono&&o.delivery_type!=='caja');
+    const waIcon=hasTel?'📲':'—';
     return `<tr${isToday?' style="background:#f0fdf4"':''}>
       <td><strong>#${o.order_number}</strong>${isToday?'<span class="b bg" style="margin-left:6px;font-size:10px">HOY</span>':''}</td>
       <td>${new Date(o.created_at).toLocaleDateString('es-AR')}<br><small style="color:#9ca3af">${new Date(o.created_at).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}</small></td>
@@ -324,12 +328,16 @@ async function renderPedidos(filterDate=''){
       <td>$${Number(o.total).toLocaleString('es-AR')}</td>
       <td><span class="b ${o.payment_status==='pagado'?'bg':o.payment_status==='pendiente'?'by':'bgr'}">${o.payment_status}</span></td>
       <td><span class="b ${origenBadge}">${origen}</span></td>
-      <td><select class="ss" onchange="updateOrder('${o.id}',this.value)">
-        ${['pendiente','confirmada','preparando','lista','entregada','cancelada'].map(s=>`<option value="${s}"${o.status===s?' selected':''}>${s}</option>`).join('')}
-      </select></td>
+      <td>
+        <span class="b ${STATUS_BADGE[o.status]||'bgr'}" id="st-badge-${o.id}" style="margin-bottom:4px;display:block">${o.status}</span>
+        <select class="ss" id="st-sel-${o.id}" onchange="notifyOrder('${o.id}',this.value,this)">
+          ${STATUS_LIST.map(s=>`<option value="${s}"${o.status===s?' selected':''}>${s}</option>`).join('')}
+        </select>
+        <span id="st-wa-${o.id}" style="font-size:10px;color:#9ca3af;display:block;margin-top:2px">${waIcon}</span>
+      </td>
       <td><button class="btn bto" onclick="verItems('${o.id}','#${o.order_number}')">Ver items</button></td>
     </tr>`;
-  }).join('')||'<tr><td colspan="8" class="em">Sin pedidos</td></tr>';
+  }).join('')||'<tr><td colspan="9" class="em">Sin pedidos</td></tr>';
 
   document.getElementById('content').innerHTML=`
     <div class="stats">
@@ -346,11 +354,71 @@ async function renderPedidos(filterDate=''){
           <button class="btn btg" onclick="exportCSV()">⬇ CSV</button>
         </div>
       </div>
-      <table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Pago</th><th>Origen</th><th>Estado</th><th>Detalle</th></tr></thead>
+      <table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Pago</th><th>Origen</th><th>Estado / Notificar</th><th>Detalle</th></tr></thead>
       <tbody>${rows}</tbody></table>
     </div>`;
 }
-async function updateOrder(id,status){ await db.from('orders').update({status}).eq('id',id); }
+async function notifyOrder(id, status, sel) {
+  const badge = document.getElementById('st-badge-'+id);
+  const waEl  = document.getElementById('st-wa-'+id);
+  if(sel) sel.disabled = true;
+  if(waEl) waEl.textContent = '⏳ enviando...';
+
+  const STATUS_BADGE = {pendiente:'bgr',confirmada:'bb',preparando:'by',lista:'bo','en camino':'btp',entregada:'bg',cancelada:'br'};
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/notify-order`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: id, newStatus: status }),
+    });
+    const data = await res.json();
+
+    if(badge) {
+      badge.textContent = status;
+      badge.className = 'b ' + (STATUS_BADGE[status]||'bgr');
+    }
+    if(waEl) {
+      if(data.sent) {
+        const etaText = data.eta ? ` (${data.eta} min)` : '';
+        waEl.textContent = '✅ WA enviado' + etaText;
+        waEl.style.color = '#16a34a';
+      } else {
+        waEl.textContent = '— sin tel';
+        waEl.style.color = '#9ca3af';
+      }
+    }
+    showToast(data.sent
+      ? `📲 WA enviado a #${status}${data.eta?' — ETA '+data.eta+' min':''}`
+      : `Estado actualizado a "${status}" (sin notificación WA)`
+    , data.sent ? 'ok' : 'info');
+  } catch(e) {
+    // Fallback: update solo DB
+    await db.from('orders').update({status}).eq('id',id);
+    if(badge) badge.textContent = status;
+    if(waEl) { waEl.textContent = '⚠️ error WA'; waEl.style.color='#dc2626'; }
+    showToast('Estado actualizado (error al enviar WA)', 'warn');
+  } finally {
+    if(sel) sel.disabled = false;
+  }
+}
+
+function showToast(msg, type='ok') {
+  let t = document.getElementById('toast');
+  if(!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.style.cssText = 'position:fixed;bottom:24px;right:24px;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:500;z-index:9999;transition:opacity .3s;max-width:320px;box-shadow:0 4px 12px rgba(0,0,0,.15)';
+    document.body.appendChild(t);
+  }
+  const colors = { ok:'#16a34a', info:'#2563eb', warn:'#ca8a04' };
+  t.style.background = colors[type]||colors.ok;
+  t.style.color = '#fff';
+  t.style.opacity = '1';
+  t.textContent = msg;
+  clearTimeout(t._to);
+  t._to = setTimeout(() => { t.style.opacity='0'; }, 3500);
+}
 async function verItems(orderId,title){
   document.getElementById('order-modal-title').textContent='Pedido '+title;
   document.getElementById('order-modal-body').innerHTML='<div class="em">Cargando...</div>';
