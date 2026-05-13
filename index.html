@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin - Natural Funes</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f0fdf4;color:#111}
+header{background:#16a34a;color:#fff;padding:14px 20px;display:flex;align-items:center;gap:10px}
+header h1{font-size:18px;font-weight:700}
+header span{font-size:13px;opacity:.75}
+nav{background:#fff;border-bottom:1px solid #e5e7eb;padding:0 20px;display:flex}
+nav button{padding:11px 15px;background:none;border:none;border-bottom:2px solid transparent;color:#6b7280;font-size:13px;font-weight:500;cursor:pointer}
+nav button.on{color:#16a34a;border-color:#16a34a}
+main{padding:20px;max-width:1100px;margin:0 auto}
+.card{background:#fff;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;margin-bottom:16px}
+.ch{padding:14px 18px;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center}
+.ch h2{font-size:15px;font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#f9fafb;padding:9px 14px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb}
+td{padding:10px 14px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafafa}
+.b{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:500}
+.bg{background:#dcfce7;color:#15803d}.br{background:#fee2e2;color:#dc2626}
+.by{background:#fef9c3;color:#ca8a04}.bb{background:#dbeafe;color:#2563eb}
+.bgr{background:#f3f4f6;color:#6b7280}
+.btn{padding:6px 12px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:500}
+.btg{background:#16a34a;color:#fff}.bto{background:#fff;color:#374151;border:1px solid #d1d5db}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:18px}
+.st{background:#fff;border-radius:8px;border:1px solid #e5e7eb;padding:16px}
+.st .l{font-size:12px;color:#6b7280;margin-bottom:4px}.st .v{font-size:26px;font-weight:700}
+.lw{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f0fdf4}
+.lb{background:#fff;border-radius:10px;border:1px solid #e5e7eb;padding:36px;width:340px}
+.lb h2{font-size:20px;font-weight:700;margin-bottom:4px}.lb p{font-size:13px;color:#6b7280;margin-bottom:20px}
+.lb input{width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:13px;margin-bottom:10px}
+.lb button{width:100%;padding:9px;background:#16a34a;color:#fff;border:none;border-radius:7px;font-size:14px;font-weight:600;cursor:pointer}
+.em{padding:32px;text-align:center;color:#9ca3af;font-size:13px}
+input.sn{width:65px;padding:3px 7px;border:1px solid #d1d5db;border-radius:4px;font-size:12px}
+.tag{font-size:11px;padding:2px 5px;border-radius:4px;background:#e0f2fe;color:#0369a1}
+.err{background:#fee2e2;color:#dc2626;padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:10px}
+select.ss{font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:4px}
+</style>
+</head>
+<body>
+
+<div id="login-screen" class="lw">
+  <div class="lb">
+    <h2>🥬 Natural Funes</h2>
+    <p>Panel de administracion</p>
+    <div id="login-err" class="err" style="display:none"></div>
+    <input type="password" id="pwd" placeholder="Contrasena" />
+    <button onclick="doLogin()">Ingresar</button>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+  <header>
+    <span style="font-size:22px">🥬</span>
+    <div><h1>Natural Funes</h1><span>Panel de administracion</span></div>
+    <button class="btn bto" style="margin-left:auto;font-size:12px" onclick="logout()">Salir</button>
+  </header>
+  <nav>
+    <button class="on" onclick="showTab('productos',this)">Productos</button>
+    <button onclick="showTab('pedidos',this)">Pedidos</button>
+    <button onclick="showTab('stock',this)">Stock</button>
+    <button onclick="showTab('mensajes',this)">WhatsApp</button>
+  </nav>
+  <main id="content"><div class="em">Cargando...</div></main>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://zxbdzeggkdrggelxskfu.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4YmR6ZWdna2RyZ2dlbHhza2Z1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Njk2NDAsImV4cCI6MjA5MjU0NTY0MH0.OgSJnFExZEw8wWp1E3qx12eyQ6h9_0-15ZJCnZBaIFA';
+const ADMIN_PASS = 'naturalfunes2024';
+const EXPORT_URL = SUPABASE_URL + '/functions/v1/export-ventas';
+
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+function doLogin() {
+  const pwd = document.getElementById('pwd').value;
+  if (pwd === ADMIN_PASS) {
+    sessionStorage.setItem('nf_admin', '1');
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    showTab('productos', document.querySelector('nav button'));
+  } else {
+    const err = document.getElementById('login-err');
+    err.textContent = 'Contrasena incorrecta';
+    err.style.display = 'block';
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem('nf_admin');
+  location.reload();
+}
+
+document.getElementById('pwd').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+if (sessionStorage.getItem('nf_admin')) {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  showTab('productos', document.querySelector('nav button'));
+}
+
+function showTab(tab, btn) {
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  const el = document.getElementById('content');
+  el.innerHTML = '<div class="em">Cargando...</div>';
+  if (tab === 'productos') renderProductos();
+  else if (tab === 'pedidos') renderPedidos();
+  else if (tab === 'stock') renderStock();
+  else if (tab === 'mensajes') renderMensajes();
+}
+
+async function renderProductos() {
+  const [{ data: prods }, { data: cats }] = await Promise.all([
+    db.from('products').select('id,name,description,price,stock,available,category_id').order('name'),
+    db.from('categories').select('id,name')
+  ]);
+  const cm = {};
+  cats?.forEach(c => cm[c.id] = c.name);
+  const total = prods?.length || 0;
+  const activos = prods?.filter(p => p.available).length || 0;
+  const sinStock = prods?.filter(p => (p.stock ?? 0) === 0).length || 0;
+
+  const rows = prods?.map(p => `
+    <tr>
+      <td><strong>${p.name}</strong>${p.description ? `<br><small style="color:#9ca3af">${p.description}</small>` : ''}</td>
+      <td>${cm[p.category_id] || '-'}</td>
+      <td>$${Number(p.price).toLocaleString('es-AR')}</td>
+      <td>
+        <input class="sn" type="number" value="${p.stock ?? 0}" min="0" id="stk_${p.id}">
+        <button class="btn bto" style="margin-left:4px" onclick="updateStock('${p.id}')">OK</button>
+      </td>
+      <td><span class="b ${p.available ? 'bg' : 'br'}">${p.available ? 'Activo' : 'Inactivo'}</span></td>
+      <td><button class="btn bto" onclick="toggleProduct('${p.id}', ${!p.available})">${p.available ? 'Desactivar' : 'Activar'}</button></td>
+    </tr>`).join('') || '<tr><td colspan="6" class="em">Sin productos</td></tr>';
+
+  document.getElementById('content').innerHTML = `
+    <div class="stats">
+      <div class="st"><div class="l">Total productos</div><div class="v">${total}</div></div>
+      <div class="st"><div class="l">Activos</div><div class="v">${activos}</div></div>
+      <div class="st"><div class="l">Sin stock</div><div class="v">${sinStock}</div></div>
+    </div>
+    <div class="card">
+      <div class="ch"><h2>Catalogo</h2></div>
+      <table><thead><tr><th>Producto</th><th>Categoria</th><th>Precio</th><th>Stock</th><th>Estado</th><th>Accion</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+}
+
+async function updateStock(id) {
+  const stock = parseInt(document.getElementById('stk_' + id).value);
+  await db.from('products').update({ stock }).eq('id', id);
+  renderProductos();
+}
+
+async function toggleProduct(id, available) {
+  await db.from('products').update({ available }).eq('id', id);
+  renderProductos();
+}
+
+async function renderPedidos() {
+  const { data: orders } = await db.from('orders').select('*').order('created_at', { ascending: false }).limit(50);
+  const total = orders?.reduce((s, o) => s + Number(o.total), 0) || 0;
+  const pendientes = orders?.filter(o => o.status === 'pendiente').length || 0;
+
+  const rows = orders?.map(o => `
+    <tr>
+      <td><strong>#${o.order_number}</strong></td>
+      <td>${new Date(o.created_at).toLocaleDateString('es-AR')}</td>
+      <td>${o.nombre} ${o.apellido}</td>
+      <td>${o.telefono}</td>
+      <td>$${Number(o.total).toLocaleString('es-AR')}</td>
+      <td><span class="b ${o.payment_status === 'pagado' ? 'bg' : o.payment_status === 'pendiente' ? 'by' : 'bgr'}">${o.payment_status}</span></td>
+      <td>
+        <select class="ss" onchange="updateOrder('${o.id}', this.value)">
+          ${['pendiente','confirmada','preparando','lista','entregada','cancelada'].map(s =>
+            `<option value="${s}" ${o.status === s ? 'selected' : ''}>${s}</option>`).join('')}
+        </select>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="7" class="em">Sin pedidos</td></tr>';
+
+  document.getElementById('content').innerHTML = `
+    <div class="stats">
+      <div class="st"><div class="l">Total pedidos</div><div class="v">${orders?.length || 0}</div></div>
+      <div class="st"><div class="l">Pendientes</div><div class="v">${pendientes}</div></div>
+      <div class="st"><div class="l">Facturado</div><div class="v">$${total.toLocaleString('es-AR')}</div></div>
+    </div>
+    <div class="card">
+      <div class="ch">
+        <h2>Pedidos recientes</h2>
+        <a href="${EXPORT_URL}" class="btn btg" target="_blank">⬇ Descargar CSV</a>
+      </div>
+      <table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Tel</th><th>Total</th><th>Pago</th><th>Estado</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+}
+
+async function updateOrder(id, status) {
+  await db.from('orders').update({ status }).eq('id', id);
+}
+
+async function renderStock() {
+  const { data: mvs } = await db.from('stock_movements').select('*').order('created_at', { ascending: false }).limit(100);
+
+  const rows = mvs?.map(m => `
+    <tr>
+      <td>${new Date(m.created_at).toLocaleString('es-AR')}</td>
+      <td><strong>${m.product_name}</strong></td>
+      <td><span class="b ${m.movement_type === 'entrada' ? 'bg' : m.movement_type === 'salida' ? 'br' : 'by'}">${m.movement_type}</span></td>
+      <td>${m.quantity > 0 ? '+' : ''}${m.quantity}</td>
+      <td><span class="b bb">${m.source}</span></td>
+      <td style="color:#6b7280">${m.notes || '-'}</td>
+    </tr>`).join('') || '<tr><td colspan="6" class="em">Sin movimientos</td></tr>';
+
+  document.getElementById('content').innerHTML = `
+    <div class="card">
+      <div class="ch"><h2>Movimientos de stock</h2></div>
+      <table><thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cantidad</th><th>Fuente</th><th>Nota</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+}
+
+async function renderMensajes() {
+  const { data: msgs } = await db.from('whatsapp_messages').select('*').order('created_at', { ascending: false }).limit(100);
+  const total = msgs?.length || 0;
+  const pedidos = msgs?.filter(m => m.intent === 'pedido').length || 0;
+  const stockMsgs = msgs?.filter(m => m.intent === 'stock_entrada').length || 0;
+
+  const rows = msgs?.map(m => `
+    <tr>
+      <td>${new Date(m.created_at).toLocaleString('es-AR')}</td>
+      <td>${m.from_name || '-'}<br><small style="color:#9ca3af">${m.from_number}</small></td>
+      <td>${m.body}</td>
+      <td><span class="tag">${m.intent || 'otro'}</span></td>
+    </tr>`).join('') || '<tr><td colspan="4" class="em">Sin mensajes</td></tr>';
+
+  document.getElementById('content').innerHTML = `
+    <div class="stats">
+      <div class="st"><div class="l">Total mensajes</div><div class="v">${total}</div></div>
+      <div class="st"><div class="l">Pedidos recibidos</div><div class="v">${pedidos}</div></div>
+      <div class="st"><div class="l">Cargas de stock</div><div class="v">${stockMsgs}</div></div>
+    </div>
+    <div class="card">
+      <div class="ch"><h2>Mensajes WhatsApp</h2></div>
+      <table><thead><tr><th>Fecha</th><th>Contacto</th><th>Mensaje</th><th>Intencion</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+}
+</script>
+</body>
+</html>
