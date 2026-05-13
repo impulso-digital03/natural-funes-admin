@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin - Natural Funes</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f0fdf4;color:#111}
+header{background:#16a34a;color:#fff;padding:12px 20px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+header h1{font-size:18px;font-weight:700}
+header span.sub{font-size:13px;opacity:.75}
+.hbtns{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+nav{background:#fff;border-bottom:1px solid #e5e7eb;padding:0 20px;display:flex;overflow-x:auto}
+nav button{padding:11px 14px;background:none;border:none;border-bottom:2px solid transparent;color:#6b7280;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+nav button.on{color:#16a34a;border-color:#16a34a}
+main{padding:20px;max-width:1200px;margin:0 auto}
+.card{background:#fff;border-radius:8px;border:1px solid #e5e7eb;overflow:hidden;margin-bottom:16px}
+.ch{padding:14px 18px;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.ch h2{font-size:15px;font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#f9fafb;padding:9px 14px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb}
+td{padding:10px 14px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafafa}
+tr.low-stock td{background:#fff7ed}
+tr.no-stock td{background:#fef2f2}
+.b{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:500}
+.bg{background:#dcfce7;color:#15803d}.br{background:#fee2e2;color:#dc2626}
+.by{background:#fef9c3;color:#ca8a04}.bb{background:#dbeafe;color:#2563eb}
+.bgr{background:#f3f4f6;color:#6b7280}.bo{background:#ffedd5;color:#c2410c}
+.btn{padding:6px 12px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:500;transition:opacity .15s}
+.btg{background:#16a34a;color:#fff}.bto{background:#fff;color:#374151;border:1px solid #d1d5db}
+.btr{background:#dc2626;color:#fff}.btb{background:#2563eb;color:#fff}.btp{background:#7c3aed;color:#fff}
+.btn:hover{opacity:.85}.btn:disabled{opacity:.5;cursor:not-allowed}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:18px}
+.st{background:#fff;border-radius:8px;border:1px solid #e5e7eb;padding:16px}
+.st .l{font-size:12px;color:#6b7280;margin-bottom:4px}.st .v{font-size:26px;font-weight:700}
+.st .sub{font-size:11px;color:#9ca3af;margin-top:2px}
+.lw{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f0fdf4}
+.lb{background:#fff;border-radius:10px;border:1px solid #e5e7eb;padding:36px;width:340px}
+.lb h2{font-size:20px;font-weight:700;margin-bottom:4px}.lb p{font-size:13px;color:#6b7280;margin-bottom:20px}
+.lb input{width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:7px;font-size:13px;margin-bottom:10px}
+.lb button{width:100%;padding:9px;background:#16a34a;color:#fff;border:none;border-radius:7px;font-size:14px;font-weight:600;cursor:pointer}
+.em{padding:32px;text-align:center;color:#9ca3af;font-size:13px}
+input.sn{width:65px;padding:3px 7px;border:1px solid #d1d5db;border-radius:4px;font-size:12px}
+.tag{font-size:11px;padding:2px 5px;border-radius:4px;background:#e0f2fe;color:#0369a1}
+.err{background:#fee2e2;color:#dc2626;padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:10px}
+select.ss{font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:4px}
+.alert{background:#fff7ed;border:1px solid #fed7aa;color:#92400e;padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:14px}
+/* Modal */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:10px;padding:24px;width:90%;max-width:560px;max-height:85vh;overflow-y:auto;position:relative}
+.modal h3{font-size:16px;font-weight:700;margin-bottom:16px}
+.modal-close{position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:#6b7280}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-grid .full{grid-column:1/-1}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:12px;font-weight:500;color:#374151}
+.field input,.field select,.field textarea{padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;width:100%}
+.field textarea{resize:vertical;min-height:60px}
+.form-actions{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+.search-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.search-bar input{padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;width:220px}
+/* ── POS / CAJA ── */
+.pos-wrap{display:grid;grid-template-columns:1fr 360px;gap:16px;min-height:500px}
+@media(max-width:800px){.pos-wrap{grid-template-columns:1fr}}
+.pos-search{width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;margin-bottom:12px}
+.prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;max-height:520px;overflow-y:auto;padding-right:4px}
+.prod-card{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:12px;cursor:pointer;transition:all .15s;position:relative}
+.prod-card:hover{border-color:#16a34a;box-shadow:0 2px 8px rgba(22,163,74,.15)}
+.prod-card.no-stk{opacity:.45;cursor:not-allowed}
+.prod-card .pn{font-size:13px;font-weight:600;margin-bottom:4px;line-height:1.3}
+.prod-card .pp{font-size:15px;font-weight:700;color:#16a34a}
+.prod-card .ps{font-size:11px;color:#9ca3af;margin-top:2px}
+.prod-card .pin-badge{position:absolute;top:8px;right:8px;background:#16a34a;color:#fff;border-radius:99px;font-size:11px;font-weight:700;padding:2px 7px}
+.cart-panel{background:#fff;border-radius:8px;border:1px solid #e5e7eb;display:flex;flex-direction:column;overflow:hidden}
+.cart-header{padding:14px 16px;border-bottom:1px solid #f3f4f6;font-weight:700;font-size:15px}
+.cart-items{flex:1;overflow-y:auto;min-height:200px;max-height:380px}
+.cart-item{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid #f3f4f6;font-size:13px}
+.cart-item .cin{flex:1;font-weight:500;line-height:1.3}
+.cart-item .ciq{width:50px;padding:3px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;text-align:center}
+.cart-item .cip{width:80px;text-align:right;font-weight:600;color:#16a34a;font-size:13px}
+.cart-item .cix{background:none;border:none;cursor:pointer;color:#9ca3af;font-size:16px;padding:0 2px}
+.cart-item .cix:hover{color:#dc2626}
+.cart-empty{padding:32px;text-align:center;color:#9ca3af;font-size:13px}
+.cart-footer{padding:14px 16px;border-top:1px solid #e5e7eb;background:#f9fafb}
+.cart-total{font-size:20px;font-weight:800;color:#111;margin-bottom:10px;display:flex;justify-content:space-between}
+.cart-footer .btn{width:100%;padding:10px;font-size:14px;margin-bottom:6px}
+/* ── GASTOS FORM ── */
+.gasto-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;padding:16px 18px;border-bottom:1px solid #f3f4f6}
+.gasto-form .full{grid-column:1/-1}
+.gasto-form input,.gasto-form select{padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;width:100%}
+.gasto-form label{display:block;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;margin-bottom:3px}
+/* Items modal */
+.items-table{width:100%;font-size:12px;border-collapse:collapse}
+.items-table td{padding:6px 14px;border-bottom:1px solid #f3f4f6;color:#374151}
+.items-table tr:last-child td{border-bottom:none}
+</style>
+</head>
+<body>
+
+<div id="login-screen" class="lw">
+  <div class="lb">
+    <h2>🥬 Natural Funes</h2>
+    <p>Panel de administracion</p>
+    <div id="login-err" class="err" style="display:none"></div>
+    <input type="password" id="pwd" placeholder="Contrasena" />
+    <button onclick="doLogin()">Ingresar</button>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+  <header>
+    <span style="font-size:22px">🥬</span>
+    <div><h1>Natural Funes</h1><span class="sub">Panel de administracion</span></div>
+    <div class="hbtns">
+      <button class="btn btg" onclick="exportExcel()" id="xl-btn">⬇ Excel</button>
+      <button class="btn bto" style="font-size:12px" onclick="logout()">Salir</button>
+    </div>
+  </header>
+  <nav>
+    <button class="on" onclick="showTab('productos',this)">Productos</button>
+    <button onclick="showTab('pedidos',this)">Pedidos</button>
+    <button onclick="showTab('caja',this)">🛒 Caja</button>
+    <button onclick="showTab('gastos',this)">💸 Gastos</button>
+    <button onclick="showTab('stock',this)">Stock</button>
+    <button onclick="showTab('mensajes',this)">WhatsApp</button>
+  </nav>
+  <main id="content"><div class="em">Cargando...</div></main>
+</div>
+
+<!-- Modal producto -->
+<div class="modal-bg" id="prod-modal" onclick="closeModal(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('prod-modal').classList.remove('open')">✕</button>
+    <h3 id="prod-modal-title">Nuevo producto</h3>
+    <div class="form-grid">
+      <input type="hidden" id="pm-id">
+      <div class="field full"><label>Nombre *</label><input id="pm-name" placeholder="Ej: Tomate redondo"></div>
+      <div class="field full"><label>Descripcion</label><textarea id="pm-desc" placeholder="Opcional"></textarea></div>
+      <div class="field"><label>Precio *</label><input id="pm-price" type="number" min="0" step="0.01"></div>
+      <div class="field"><label>Stock</label><input id="pm-stock" type="number" min="0" value="0"></div>
+      <div class="field"><label>Categoria</label><select id="pm-cat"></select></div>
+      <div class="field"><label>Estado</label>
+        <select id="pm-avail"><option value="true">Activo</option><option value="false">Inactivo</option></select>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn bto" onclick="document.getElementById('prod-modal').classList.remove('open')">Cancelar</button>
+      <button class="btn btg" onclick="saveProduct()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal items pedido -->
+<div class="modal-bg" id="order-modal" onclick="closeModal(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('order-modal').classList.remove('open')">✕</button>
+    <h3 id="order-modal-title">Detalle del pedido</h3>
+    <div id="order-modal-body"></div>
+  </div>
+</div>
+
+<!-- Modal confirmar venta caja -->
+<div class="modal-bg" id="venta-ok-modal" onclick="closeModal(event)">
+  <div class="modal" style="text-align:center;max-width:380px">
+    <div style="font-size:48px;margin-bottom:12px">✅</div>
+    <h3 id="venta-ok-title" style="font-size:20px;margin-bottom:8px"></h3>
+    <p id="venta-ok-body" style="color:#6b7280;font-size:14px;margin-bottom:20px"></p>
+    <button class="btn btg" style="width:100%;padding:10px;font-size:14px" onclick="document.getElementById('venta-ok-modal').classList.remove('open')">Nueva venta</button>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://zxbdzeggkdrggelxskfu.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4YmR6ZWdna2RyZ2dlbHhza2Z1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Njk2NDAsImV4cCI6MjA5MjU0NTY0MH0.OgSJnFExZEw8wWp1E3qx12eyQ6h9_0-15ZJCnZBaIFA';
+const ADMIN_PASS  = 'naturalfunes2024';
+
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let _cats = [];
+let _carrito = {}; // { id: { product, qty } }
+let _allProds = [];
+
+function doLogin() {
+  if (document.getElementById('pwd').value === ADMIN_PASS) {
+    sessionStorage.setItem('nf_admin','1');
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').style.display='block';
+    showTab('productos', document.querySelector('nav button'));
+  } else {
+    const err = document.getElementById('login-err');
+    err.textContent='Contrasena incorrecta'; err.style.display='block';
+  }
+}
+function logout(){ sessionStorage.removeItem('nf_admin'); location.reload(); }
+document.getElementById('pwd').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+if (sessionStorage.getItem('nf_admin')) {
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  showTab('productos', document.querySelector('nav button'));
+}
+
+function showTab(tab, btn) {
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('content').innerHTML='<div class="em">Cargando...</div>';
+  if      (tab==='productos') renderProductos();
+  else if (tab==='pedidos')   renderPedidos();
+  else if (tab==='caja')      renderCaja();
+  else if (tab==='gastos')    renderGastos();
+  else if (tab==='stock')     renderStock();
+  else if (tab==='mensajes')  renderMensajes();
+}
+function closeModal(e){ if(e.target.classList.contains('modal-bg')) e.target.classList.remove('open'); }
+
+// ──── PRODUCTOS ──────────────────────────────────────────────────────────────
+async function renderProductos(search='') {
+  const [{ data: prods },{ data: cats }] = await Promise.all([
+    db.from('products').select('id,name,description,price,stock,available,category_id').order('name'),
+    db.from('categories').select('id,name').order('name')
+  ]);
+  _cats = cats||[];
+  const cm = {}; cats?.forEach(c=>cm[c.id]=c.name);
+  const total=prods?.length||0, activos=prods?.filter(p=>p.available).length||0;
+  const sinStock=prods?.filter(p=>(p.stock??0)===0).length||0;
+  const lowStock=prods?.filter(p=>(p.stock??0)>0&&(p.stock??0)<=5).length||0;
+  let filtered = (prods||[]).filter(p=>!search||p.name.toLowerCase().includes(search.toLowerCase()));
+  const rows = filtered.map(p=>{
+    const s=p.stock??0;
+    const rc=s===0?'no-stock':s<=5?'low-stock':'';
+    const sb=s===0?'<span class="b br">Sin stock</span>':s<=5?`<span class="b bo">${s} ⚠️</span>`:s;
+    return `<tr class="${rc}">
+      <td><strong>${p.name}</strong>${p.description?`<br><small style="color:#9ca3af">${p.description}</small>`:''}</td>
+      <td>${cm[p.category_id]||'-'}</td>
+      <td>$${Number(p.price).toLocaleString('es-AR')}</td>
+      <td><input class="sn" type="number" value="${s}" min="0" id="stk_${p.id}">
+        <button class="btn bto" style="margin-left:4px" onclick="updateStock('${p.id}')">OK</button></td>
+      <td>${sb}</td>
+      <td><span class="b ${p.available?'bg':'br'}">${p.available?'Activo':'Inactivo'}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn bto" onclick="openEditProduct('${p.id}')">✏️</button>
+        <button class="btn bto" style="margin-left:4px" onclick="toggleProduct('${p.id}',${!p.available})">${p.available?'Desactivar':'Activar'}</button>
+      </td></tr>`;
+  }).join('')||'<tr><td colspan="7" class="em">Sin productos</td></tr>';
+
+  document.getElementById('content').innerHTML=`
+    <div class="stats">
+      <div class="st"><div class="l">Total</div><div class="v">${total}</div></div>
+      <div class="st"><div class="l">Activos</div><div class="v">${activos}</div></div>
+      <div class="st"><div class="l">Sin stock</div><div class="v" style="color:#dc2626">${sinStock}</div></div>
+      <div class="st"><div class="l">Stock bajo</div><div class="v" style="color:#c2410c">${lowStock}</div></div>
+    </div>
+    ${lowStock>0?`<div class="alert">⚠️ <strong>${lowStock} producto${lowStock>1?'s':''}</strong> con stock bajo (≤5) — filas naranja</div>`:''}
+    <div class="card">
+      <div class="ch"><h2>Catalogo</h2>
+        <div class="search-bar">
+          <input placeholder="Buscar..." oninput="renderProductos(this.value)" id="prod-search" value="${search}">
+          <button class="btn btg" onclick="openNewProduct()">+ Nuevo</button>
+        </div>
+      </div>
+      <table><thead><tr><th>Producto</th><th>Categoria</th><th>Precio</th><th>Stock</th><th>Estado</th><th>Disponible</th><th>Acciones</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+  if(search) document.getElementById('prod-search').focus();
+}
+async function updateStock(id){
+  await db.from('products').update({stock:parseInt(document.getElementById('stk_'+id).value)}).eq('id',id);
+  renderProductos(document.getElementById('prod-search')?.value||'');
+}
+async function toggleProduct(id,available){ await db.from('products').update({available}).eq('id',id); renderProductos(); }
+function openNewProduct(){
+  document.getElementById('pm-id').value='';['pm-name','pm-desc','pm-price'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('pm-stock').value='0'; document.getElementById('pm-avail').value='true';
+  document.getElementById('prod-modal-title').textContent='Nuevo producto';
+  const sel=document.getElementById('pm-cat');
+  sel.innerHTML='<option value="">Sin categoria</option>'+_cats.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  document.getElementById('prod-modal').classList.add('open');
+}
+function openEditProduct(id){
+  db.from('products').select('*').eq('id',id).single().then(({data:p})=>{
+    document.getElementById('pm-id').value=p.id; document.getElementById('pm-name').value=p.name;
+    document.getElementById('pm-desc').value=p.description||''; document.getElementById('pm-price').value=p.price;
+    document.getElementById('pm-stock').value=p.stock??0; document.getElementById('pm-avail').value=String(p.available);
+    document.getElementById('prod-modal-title').textContent='Editar producto';
+    const sel=document.getElementById('pm-cat');
+    sel.innerHTML='<option value="">Sin categoria</option>'+_cats.map(c=>`<option value="${c.id}"${c.id===p.category_id?' selected':''}>${c.name}</option>`).join('');
+    document.getElementById('prod-modal').classList.add('open');
+  });
+}
+async function saveProduct(){
+  const id=document.getElementById('pm-id').value, name=document.getElementById('pm-name').value.trim();
+  const price=parseFloat(document.getElementById('pm-price').value);
+  if(!name||isNaN(price)){alert('Nombre y precio son obligatorios');return;}
+  const payload={name,description:document.getElementById('pm-desc').value.trim()||null,price,
+    stock:parseInt(document.getElementById('pm-stock').value)||0,
+    category_id:document.getElementById('pm-cat').value||null,
+    available:document.getElementById('pm-avail').value==='true'};
+  if(id) await db.from('products').update(payload).eq('id',id);
+  else    await db.from('products').insert(payload);
+  document.getElementById('prod-modal').classList.remove('open'); renderProductos();
+}
+
+// ──── PEDIDOS ────────────────────────────────────────────────────────────────
+async function renderPedidos(filterDate=''){
+  let q=db.from('orders').select('*').order('created_at',{ascending:false}).limit(100);
+  if(filterDate) q=q.gte('created_at',filterDate+'T00:00:00').lte('created_at',filterDate+'T23:59:59');
+  const {data:orders}=await q;
+  const today=new Date().toISOString().slice(0,10);
+  const todayOrds=orders?.filter(o=>o.created_at?.slice(0,10)===today).length||0;
+  const total=orders?.reduce((s,o)=>s+Number(o.total),0)||0;
+  const pendientes=orders?.filter(o=>o.status==='pendiente').length||0;
+  const totalHoy=orders?.filter(o=>o.created_at?.slice(0,10)===today).reduce((s,o)=>s+Number(o.total),0)||0;
+  const rows=orders?.map(o=>{
+    const isToday=o.created_at?.slice(0,10)===today;
+    const origen=o.notes?.includes('WhatsApp')?'WA':o.delivery_type==='caja'?'Caja':'Web';
+    const origenBadge=origen==='WA'?'bg':origen==='Caja'?'bo':'bb';
+    return `<tr${isToday?' style="background:#f0fdf4"':''}>
+      <td><strong>#${o.order_number}</strong>${isToday?'<span class="b bg" style="margin-left:6px;font-size:10px">HOY</span>':''}</td>
+      <td>${new Date(o.created_at).toLocaleDateString('es-AR')}<br><small style="color:#9ca3af">${new Date(o.created_at).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}</small></td>
+      <td>${o.nombre} ${o.apellido||''}<br><small style="color:#9ca3af">${o.telefono||''}</small></td>
+      <td>$${Number(o.total).toLocaleString('es-AR')}</td>
+      <td><span class="b ${o.payment_status==='pagado'?'bg':o.payment_status==='pendiente'?'by':'bgr'}">${o.payment_status}</span></td>
+      <td><span class="b ${origenBadge}">${origen}</span></td>
+      <td><select class="ss" onchange="updateOrder('${o.id}',this.value)">
+        ${['pendiente','confirmada','preparando','lista','entregada','cancelada'].map(s=>`<option value="${s}"${o.status===s?' selected':''}>${s}</option>`).join('')}
+      </select></td>
+      <td><button class="btn bto" onclick="verItems('${o.id}','#${o.order_number}')">Ver items</button></td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="8" class="em">Sin pedidos</td></tr>';
+
+  document.getElementById('content').innerHTML=`
+    <div class="stats">
+      <div class="st"><div class="l">Total pedidos</div><div class="v">${orders?.length||0}</div></div>
+      <div class="st"><div class="l">Hoy</div><div class="v" style="color:#16a34a">${todayOrds}</div><div class="sub">$${totalHoy.toLocaleString('es-AR')}</div></div>
+      <div class="st"><div class="l">Pendientes</div><div class="v" style="color:#ca8a04">${pendientes}</div></div>
+      <div class="st"><div class="l">Total facturado</div><div class="v">$${total.toLocaleString('es-AR')}</div></div>
+    </div>
+    <div class="card">
+      <div class="ch"><h2>Pedidos</h2>
+        <div class="search-bar">
+          <input type="date" class="sn" style="width:auto" id="date-filter" value="${filterDate}" onchange="renderPedidos(this.value)">
+          <button class="btn bto" onclick="renderPedidos('')">Ver todos</button>
+          <button class="btn btg" onclick="exportCSV()">⬇ CSV</button>
+        </div>
+      </div>
+      <table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Pago</th><th>Origen</th><th>Estado</th><th>Detalle</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+}
+async function updateOrder(id,status){ await db.from('orders').update({status}).eq('id',id); }
+async function verItems(orderId,title){
+  document.getElementById('order-modal-title').textContent='Pedido '+title;
+  document.getElementById('order-modal-body').innerHTML='<div class="em">Cargando...</div>';
+  document.getElementById('order-modal').classList.add('open');
+  const {data:items}=await db.from('order_items').select('product_name_snapshot,quantity,unit_price_snapshot,subtotal').eq('order_id',orderId);
+  if(!items?.length){document.getElementById('order-modal-body').innerHTML='<div class="em">Sin items</div>';return;}
+  const total=items.reduce((s,i)=>s+Number(i.subtotal),0);
+  document.getElementById('order-modal-body').innerHTML=`
+    <table class="items-table">
+      <thead><tr style="background:#f9fafb"><th style="padding:8px 14px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase">Producto</th><th style="padding:8px 14px;text-align:center;font-size:11px;color:#6b7280;text-transform:uppercase">Cant</th><th style="padding:8px 14px;text-align:right;font-size:11px;color:#6b7280;text-transform:uppercase">Precio</th><th style="padding:8px 14px;text-align:right;font-size:11px;color:#6b7280;text-transform:uppercase">Subtotal</th></tr></thead>
+      <tbody>${items.map(i=>`<tr><td style="padding:8px 14px">${i.product_name_snapshot}</td><td style="padding:8px 14px;text-align:center">${i.quantity}</td><td style="padding:8px 14px;text-align:right">$${Number(i.unit_price_snapshot).toLocaleString('es-AR')}</td><td style="padding:8px 14px;text-align:right">$${Number(i.subtotal).toLocaleString('es-AR')}</td></tr>`).join('')}</tbody>
+    </table>
+    <div style="padding:12px 14px;text-align:right;font-weight:700;font-size:14px;border-top:1px solid #e5e7eb">Total: $${total.toLocaleString('es-AR')}</div>`;
+}
+async function exportCSV(){
+  const {data:orders}=await db.from('orders').select('*').order('created_at',{ascending:false});
+  if(!orders?.length){alert('No hay pedidos');return;}
+  const {data:items}=await db.from('order_items').select('*');
+  const byOrder={};(items||[]).forEach(i=>{if(!byOrder[i.order_id])byOrder[i.order_id]=[];byOrder[i.order_id].push(i);});
+  const rows=[['#','Fecha','Nombre','Apellido','Tel','Items','Total','Estado','Pago','Origen']];
+  orders.forEach(o=>{
+    const ois=(byOrder[o.id]||[]).map(i=>`${i.quantity}x ${i.product_name_snapshot}`).join(' | ');
+    const origen=o.notes?.includes('WhatsApp')?'WhatsApp':o.delivery_type==='caja'?'Caja':'Web';
+    rows.push([o.order_number,new Date(o.created_at).toLocaleString('es-AR'),o.nombre,o.apellido,o.telefono,ois,o.total,o.status,o.payment_status,origen]);
+  });
+  const csv=rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'}));
+  a.download=`pedidos-${new Date().toISOString().slice(0,10)}.csv`;a.click();
+}
+
+// ──── CAJA (POS) ─────────────────────────────────────────────────────────────
+async function renderCaja(){
+  const today=new Date().toISOString().slice(0,10);
+  const [{data:prods},{data:cajaDia}]=await Promise.all([
+    db.from('products').select('id,name,price,stock,available,category_id').eq('available',true).order('name'),
+    db.from('orders').select('total').eq('delivery_type','caja').gte('created_at',today+'T00:00:00').lte('created_at',today+'T23:59:59')
+  ]);
+  _allProds=prods||[];
+  const cajaTotalHoy=(cajaDia||[]).reduce((s,o)=>s+Number(o.total),0);
+
+  document.getElementById('content').innerHTML=`
+    <div class="stats">
+      <div class="st"><div class="l">Ventas caja hoy</div><div class="v" style="color:#16a34a">${cajaDia?.length||0}</div></div>
+      <div class="st"><div class="l">Facturado caja hoy</div><div class="v">$${cajaTotalHoy.toLocaleString('es-AR')}</div></div>
+    </div>
+    <div class="pos-wrap">
+      <div>
+        <input class="pos-search" placeholder="🔍 Buscar producto..." oninput="filtrarCaja(this.value)" id="caja-search" autofocus>
+        <div class="prod-grid" id="prod-grid"></div>
+      </div>
+      <div class="cart-panel">
+        <div class="cart-header">🛒 Carrito</div>
+        <div class="cart-items" id="cart-items"><div class="cart-empty">Tocá un producto para agregarlo</div></div>
+        <div class="cart-footer">
+          <div class="cart-total"><span>Total</span><span id="cart-total-val">$0</span></div>
+          <button class="btn btg" onclick="registrarVenta()" id="btn-venta">✅ Registrar Venta</button>
+          <button class="btn bto" onclick="limpiarCarrito()">🗑 Limpiar carrito</button>
+        </div>
+      </div>
+    </div>`;
+  renderProdGrid(_allProds);
+}
+
+function filtrarCaja(q){
+  const f=q ? _allProds.filter(p=>p.name.toLowerCase().includes(q.toLowerCase())) : _allProds;
+  renderProdGrid(f);
+}
+
+function renderProdGrid(prods){
+  const grid=document.getElementById('prod-grid');
+  if(!grid) return;
+  if(!prods?.length){grid.innerHTML='<div class="em" style="grid-column:1/-1">Sin productos</div>';return;}
+  grid.innerHTML=prods.map(p=>{
+    const s=p.stock??0;
+    const inCart=_carrito[p.id]?.qty||0;
+    return `<div class="prod-card${s===0?' no-stk':''}" onclick="${s>0?`addToCart('${p.id}')`:''}" title="${s===0?'Sin stock':'Agregar al carrito'}">
+      ${inCart>0?`<span class="pin-badge">${inCart}</span>`:''}
+      <div class="pn">${p.name}</div>
+      <div class="pp">$${Number(p.price).toLocaleString('es-AR')}</div>
+      <div class="ps">${s>0?`Stock: ${s}`:'❌ Sin stock'}</div>
+    </div>`;
+  }).join('');
+}
+
+function addToCart(productId){
+  const p=_allProds.find(p=>p.id===productId);
+  if(!p) return;
+  if(!_carrito[productId]) _carrito[productId]={product:p,qty:0};
+  if(_carrito[productId].qty>=p.stock){return;}
+  _carrito[productId].qty++;
+  renderCart();
+  renderProdGrid(_allProds.filter(p=>!document.getElementById('caja-search')?.value||p.name.toLowerCase().includes(document.getElementById('caja-search').value.toLowerCase())));
+}
+
+function removeFromCart(productId){
+  delete _carrito[productId];
+  renderCart();
+  renderProdGrid(_allProds);
+}
+
+function updateCartQty(productId, val){
+  const qty=parseInt(val)||0;
+  const p=_allProds.find(p=>p.id===productId);
+  if(qty<=0){ delete _carrito[productId]; }
+  else if(p && qty<=p.stock){ _carrito[productId].qty=qty; }
+  renderCart();
+}
+
+function limpiarCarrito(){ _carrito={}; renderCart(); renderProdGrid(_allProds); }
+
+function renderCart(){
+  const items=Object.values(_carrito).filter(i=>i.qty>0);
+  const cartEl=document.getElementById('cart-items');
+  const totalEl=document.getElementById('cart-total-val');
+  if(!cartEl) return;
+  if(!items.length){
+    cartEl.innerHTML='<div class="cart-empty">Tocá un producto para agregarlo</div>';
+    if(totalEl) totalEl.textContent='$0';
+    return;
+  }
+  const total=items.reduce((s,i)=>s+i.product.price*i.qty,0);
+  cartEl.innerHTML=items.map(i=>`
+    <div class="cart-item">
+      <div class="cin">${i.product.name}<br><small style="color:#9ca3af">$${i.product.price.toLocaleString('es-AR')} c/u</small></div>
+      <input class="ciq" type="number" value="${i.qty}" min="1" max="${i.product.stock}" onchange="updateCartQty('${i.product.id}',this.value)">
+      <div class="cip">$${(i.product.price*i.qty).toLocaleString('es-AR')}</div>
+      <button class="cix" onclick="removeFromCart('${i.product.id}')">✕</button>
+    </div>`).join('');
+  if(totalEl) totalEl.textContent='$'+total.toLocaleString('es-AR');
+}
+
+async function registrarVenta(){
+  const items=Object.values(_carrito).filter(i=>i.qty>0);
+  if(!items.length){ alert('El carrito está vacío'); return; }
+  const btn=document.getElementById('btn-venta');
+  btn.disabled=true; btn.textContent='Registrando...';
+  try {
+    // Validar stock
+    for(const item of items){
+      const {data:p}=await db.from('products').select('stock').eq('id',item.product.id).single();
+      if((p?.stock||0)<item.qty){ alert(`Stock insuficiente para ${item.product.name} (disponible: ${p?.stock||0})`); btn.disabled=false; btn.textContent='✅ Registrar Venta'; return; }
+    }
+    const subtotal=items.reduce((s,i)=>s+i.product.price*i.qty,0);
+    const {data:maxRow}=await db.from('orders').select('order_number').order('order_number',{ascending:false}).limit(1).maybeSingle();
+    const orderNumber=(maxRow?.order_number||0)+1;
+    const {data:order,error}=await db.from('orders').insert({
+      order_number:orderNumber, nombre:'Mostrador', apellido:'', telefono:'',
+      subtotal, shipping_cost:0, total:subtotal,
+      status:'entregada', payment_status:'pagado',
+      delivery_type:'caja', notes:'Venta en caja'
+    }).select().single();
+    if(error||!order) throw error;
+    // Items
+    await db.from('order_items').insert(items.map(i=>({
+      order_id:order.id, product_id:i.product.id,
+      product_name_snapshot:i.product.name, unit_price_snapshot:i.product.price,
+      quantity:i.qty, subtotal:i.product.price*i.qty
+    })));
+    // Stock
+    for(const item of items){
+      const {data:p}=await db.from('products').select('stock').eq('id',item.product.id).single();
+      const newStock=(p?.stock||0)-item.qty;
+      await db.from('products').update({stock:newStock}).eq('id',item.product.id);
+      await db.from('stock_movements').insert({
+        product_id:item.product.id, product_name:item.product.name,
+        movement_type:'salida', quantity:-item.qty,
+        source:'manual', notes:`Venta caja #${orderNumber}`
+      });
+      // Update local stock
+      const lp=_allProds.find(p=>p.id===item.product.id);
+      if(lp) lp.stock=newStock;
+    }
+    // Mostrar confirmación
+    const resumen=items.map(i=>`${i.qty}× ${i.product.name}`).join(', ');
+    document.getElementById('venta-ok-title').textContent=`Venta #${orderNumber} registrada`;
+    document.getElementById('venta-ok-body').textContent=`${resumen} — Total: $${subtotal.toLocaleString('es-AR')}`;
+    document.getElementById('venta-ok-modal').classList.add('open');
+    _carrito={};
+    renderCart();
+    renderProdGrid(_allProds);
+    // Refresh stats
+    const today=new Date().toISOString().slice(0,10);
+    const {data:cajaDia}=await db.from('orders').select('total').eq('delivery_type','caja').gte('created_at',today+'T00:00:00').lte('created_at',today+'T23:59:59');
+    const cajaTot=(cajaDia||[]).reduce((s,o)=>s+Number(o.total),0);
+    document.querySelector('.stats')?.querySelectorAll('.st').forEach((el,i)=>{
+      if(i===0) el.querySelector('.v').textContent=cajaDia?.length||0;
+      if(i===1) el.querySelector('.v').textContent='$'+cajaTot.toLocaleString('es-AR');
+    });
+  } catch(e){
+    alert('Error al registrar la venta. Intentá de nuevo.');
+    console.error(e);
+  } finally {
+    btn.disabled=false; btn.textContent='✅ Registrar Venta';
+  }
+}
+
+// ──── GASTOS ─────────────────────────────────────────────────────────────────
+const CATEGORIAS_GASTO=['Mercadería / Fruta y Verdura','Alquiler','Servicios Públicos','Empleados / Sueldos','Transporte / Flete','Publicidad / Marketing','Mantenimiento / Reparaciones','Equipamiento','Impuestos y Tasas','Otros'];
+
+async function renderGastos(filterMes=''){
+  const today=new Date();
+  const mesKey=filterMes||today.toISOString().slice(0,7);
+  const desde=mesKey+'-01', hasta=mesKey+'-31';
+  const {data:gastos}=await db.from('gastos').select('*').gte('fecha',desde).lte('fecha',hasta).order('fecha',{ascending:false});
+
+  const totalMes=(gastos||[]).reduce((s,g)=>s+Number(g.total),0);
+  const ivaCredito=(gastos||[]).reduce((s,g)=>s+Number(g.iva_credito),0);
+  const byCategoria={};
+  (gastos||[]).forEach(g=>{
+    if(!byCategoria[g.categoria]) byCategoria[g.categoria]=0;
+    byCategoria[g.categoria]+=Number(g.total);
+  });
+  const topCat=Object.entries(byCategoria).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([c,v])=>`${c}: $${v.toLocaleString('es-AR')}`).join(' | ');
+
+  const meses=[];
+  for(let i=0;i<12;i++){const d=new Date(today);d.setMonth(today.getMonth()-i);meses.push(d.toISOString().slice(0,7));}
+
+  const rows=(gastos||[]).map(g=>`<tr>
+    <td>${g.fecha}</td>
+    <td><span class="b bgr">${g.categoria}</span></td>
+    <td>${g.descripcion||'-'}</td>
+    <td>${g.proveedor||'-'}</td>
+    <td>$${Number(g.monto).toLocaleString('es-AR')}</td>
+    <td>${g.iva_credito>0?'$'+Number(g.iva_credito).toLocaleString('es-AR'):'-'}</td>
+    <td><strong>$${Number(g.total).toLocaleString('es-AR')}</strong></td>
+    <td>${g.forma_pago}</td>
+    <td><span class="b ${g.deducible?'bg':'br'}">${g.deducible?'Sí':'No'}</span></td>
+    <td><button class="btn btr" style="padding:3px 8px" onclick="eliminarGasto('${g.id}')">✕</button></td>
+  </tr>`).join('')||'<tr><td colspan="10" class="em">Sin gastos este mes</td></tr>';
+
+  document.getElementById('content').innerHTML=`
+    <div class="stats">
+      <div class="st"><div class="l">Gastos del mes</div><div class="v" style="color:#dc2626">$${totalMes.toLocaleString('es-AR')}</div></div>
+      <div class="st"><div class="l">IVA crédito</div><div class="v" style="color:#2563eb">$${ivaCredito.toLocaleString('es-AR')}</div></div>
+      <div class="st"><div class="l">Registros</div><div class="v">${gastos?.length||0}</div></div>
+    </div>
+    ${topCat?`<div class="alert" style="background:#eff6ff;border-color:#bfdbfe;color:#1e40af">📊 <strong>Top este mes:</strong> ${topCat}</div>`:''}
+    <div class="card">
+      <div class="ch">
+        <h2>Registrar Gasto</h2>
+        <select class="ss" onchange="renderGastos(this.value)">
+          ${meses.map(m=>`<option value="${m}"${m===mesKey?' selected':''}>${new Date(m+'-15').toLocaleString('es-AR',{month:'long',year:'numeric'})}</option>`).join('')}
+        </select>
+      </div>
+      <div class="gasto-form">
+        <div><label>Fecha *</label><input type="date" id="g-fecha" value="${today.toISOString().slice(0,10)}"></div>
+        <div><label>Categoría *</label><select id="g-cat">${CATEGORIAS_GASTO.map(c=>`<option>${c}</option>`).join('')}</select></div>
+        <div><label>Descripción</label><input id="g-desc" placeholder="Ej: Compra tomates a proveedor"></div>
+        <div><label>Proveedor</label><input id="g-prov" placeholder="Nombre del proveedor"></div>
+        <div><label>Monto neto *</label><input type="number" id="g-monto" min="0" step="0.01" placeholder="0.00" oninput="calcIVA()"></div>
+        <div><label>IVA crédito</label><input type="number" id="g-iva" min="0" step="0.01" placeholder="0.00"></div>
+        <div><label>Total</label><input type="number" id="g-total" placeholder="auto" readonly style="background:#f9fafb"></div>
+        <div><label>Forma de pago</label><select id="g-pago"><option>Efectivo</option><option>Transferencia</option><option>Débito</option><option>Crédito</option><option>Cheque</option></select></div>
+        <div><label>Nro comprobante</label><input id="g-comp" placeholder="Ej: 0001-00012345"></div>
+        <div><label>Deducible</label><select id="g-ded"><option value="true">Sí</option><option value="false">No</option></select></div>
+        <div class="full"><label>Notas</label><input id="g-notas" placeholder="Observaciones opcionales"></div>
+        <div class="full"><button class="btn btg" style="padding:9px 24px" onclick="guardarGasto()">💾 Guardar Gasto</button></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch"><h2>Gastos de ${new Date(mesKey+'-15').toLocaleString('es-AR',{month:'long',year:'numeric'})}</h2></div>
+      <table><thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Proveedor</th><th>Monto neto</th><th>IVA</th><th>Total</th><th>Pago</th><th>Deducible</th><th></th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+}
+
+function calcIVA(){
+  const monto=parseFloat(document.getElementById('g-monto').value)||0;
+  const iva=parseFloat(document.getElementById('g-iva').value)||0;
+  const total=document.getElementById('g-total');
+  if(total) total.value=(monto+iva).toFixed(2);
+}
+
+document.addEventListener('input', e=>{
+  if(e.target.id==='g-iva') calcIVA();
+});
+
+async function guardarGasto(){
+  const fecha=document.getElementById('g-fecha').value;
+  const categoria=document.getElementById('g-cat').value;
+  const monto=parseFloat(document.getElementById('g-monto').value);
+  if(!fecha||!categoria||isNaN(monto)||monto<=0){alert('Fecha, categoría y monto son obligatorios');return;}
+  const {error}=await db.from('gastos').insert({
+    fecha, categoria,
+    descripcion:document.getElementById('g-desc').value||null,
+    proveedor:document.getElementById('g-prov').value||null,
+    monto,
+    iva_credito:parseFloat(document.getElementById('g-iva').value)||0,
+    forma_pago:document.getElementById('g-pago').value,
+    nro_comprobante:document.getElementById('g-comp').value||null,
+    deducible:document.getElementById('g-ded').value==='true',
+    notas:document.getElementById('g-notas').value||null,
+  });
+  if(error){alert('Error al guardar: '+error.message);return;}
+  ['g-desc','g-prov','g-monto','g-iva','g-comp','g-notas'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('g-total').value='';
+  renderGastos(document.getElementById('g-fecha').value.slice(0,7));
+}
+
+async function eliminarGasto(id){
+  if(!confirm('¿Eliminar este gasto?')) return;
+  await db.from('gastos').delete().eq('id',id);
+  renderGastos();
+}
+
+// ──── STOCK ──────────────────────────────────────────────────────────────────
+async function renderStock(){
+  const {data:mvs}=await db.from('stock_movements').select('*').order('created_at',{ascending:false}).limit(200);
+  const entradas=mvs?.filter(m=>m.movement_type==='entrada').reduce((s,m)=>s+m.quantity,0)||0;
+  const salidas=mvs?.filter(m=>m.movement_type==='salida').reduce((s,m)=>s+Math.abs(m.quantity),0)||0;
+  const rows=mvs?.map(m=>`<tr>
+    <td>${new Date(m.created_at).toLocaleString('es-AR')}</td>
+    <td><strong>${m.product_name}</strong></td>
+    <td><span class="b ${m.movement_type==='entrada'?'bg':m.movement_type==='salida'?'br':'by'}">${m.movement_type}</span></td>
+    <td>${m.quantity>0?'+':''}${m.quantity}</td>
+    <td><span class="b bb">${m.source}</span></td>
+    <td style="color:#6b7280">${m.notes||'-'}</td>
+  </tr>`).join('')||'<tr><td colspan="6" class="em">Sin movimientos</td></tr>';
+  document.getElementById('content').innerHTML=`
+    <div class="stats">
+      <div class="st"><div class="l">Movimientos</div><div class="v">${mvs?.length||0}</div></div>
+      <div class="st"><div class="l">Total entradas</div><div class="v" style="color:#16a34a">+${entradas}</div></div>
+      <div class="st"><div class="l">Total salidas</div><div class="v" style="color:#dc2626">-${salidas}</div></div>
+    </div>
+    <div class="card">
+      <div class="ch"><h2>Movimientos de stock</h2></div>
+      <table><thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cantidad</th><th>Fuente</th><th>Nota</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+}
+
+// ──── MENSAJES ───────────────────────────────────────────────────────────────
+async function renderMensajes(){
+  const {data:msgs}=await db.from('whatsapp_messages').select('*').order('created_at',{ascending:false}).limit(150);
+  const total=msgs?.length||0, pedidos=msgs?.filter(m=>m.intent?.includes('pedido')).length||0;
+  const stockMs=msgs?.filter(m=>m.intent==='stock_entrada').length||0;
+  const hoy=msgs?.filter(m=>m.created_at?.slice(0,10)===new Date().toISOString().slice(0,10)).length||0;
+  const ic=i=>{if(!i)return 'bgr';if(i.includes('pedido'))return 'bg';if(i.includes('stock'))return 'bb';if(i==='saludo')return 'by';if(i==='catalogo')return 'bo';return 'bgr';};
+  const rows=msgs?.map(m=>`<tr>
+    <td>${new Date(m.created_at).toLocaleString('es-AR')}</td>
+    <td>${m.from_name||'-'}<br><small style="color:#9ca3af">${m.from_number}</small></td>
+    <td style="max-width:320px;word-break:break-word">${m.body}</td>
+    <td><span class="b ${ic(m.intent)}">${m.intent||'otro'}</span></td>
+    <td><span class="b ${m.processed?'bg':'by'}">${m.processed?'OK':'pendiente'}</span></td>
+  </tr>`).join('')||'<tr><td colspan="5" class="em">Sin mensajes</td></tr>';
+  document.getElementById('content').innerHTML=`
+    <div class="stats">
+      <div class="st"><div class="l">Total</div><div class="v">${total}</div></div>
+      <div class="st"><div class="l">Hoy</div><div class="v" style="color:#16a34a">${hoy}</div></div>
+      <div class="st"><div class="l">Pedidos</div><div class="v">${pedidos}</div></div>
+      <div class="st"><div class="l">Stock</div><div class="v">${stockMs}</div></div>
+    </div>
+    <div class="card">
+      <div class="ch"><h2>Mensajes WhatsApp</h2></div>
+      <table><thead><tr><th>Fecha</th><th>Contacto</th><th>Mensaje</th><th>Intención</th><th>Estado</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+}
+
+// ──── EXPORT EXCEL ──────────────────────────────────────────────────────────
+async function exportExcel(){
+  const btn=document.getElementById('xl-btn');
+  btn.textContent='⏳ Generando...'; btn.disabled=true;
+  try {
+    const res=await fetch(`${SUPABASE_URL}/functions/v1/export-excel`);
+    if(!res.ok) throw new Error('Error');
+    const blob=await res.blob();
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`natural-funes-${new Date().toISOString().slice(0,10)}.xlsx`;
+    a.click(); URL.revokeObjectURL(a.href);
+  } catch(e){ alert('Error al generar el Excel. Intentá de nuevo.'); }
+  finally { btn.textContent='⬇ Excel'; btn.disabled=false; }
+}
+</script>
+</body>
+</html>
