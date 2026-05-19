@@ -124,10 +124,15 @@ select.ss{font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:
 .margin-pill{display:inline-block;padding:1px 7px;border-radius:99px;font-size:11px;font-weight:600}
 .margin-ok{background:#dcfce7;color:#15803d}.margin-low{background:#fef9c3;color:#ca8a04}.margin-neg{background:#fee2e2;color:#dc2626}
 @media(max-width:800px){.dash-2col{grid-template-columns:1fr!important}}
-/* ── PESO / BALANZA ── */
-.peso-badge{position:absolute;top:8px;left:8px;background:#2563eb;color:#fff;border-radius:99px;font-size:10px;font-weight:700;padding:2px 6px}
-.prod-card.peso-card{border-color:#dbeafe}
-.prod-card.peso-card:hover{border-color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.15)}
+/* ── CAJA DOBLE MODO ── */
+.prod-card-body{cursor:default}
+.prod-card-btns{display:flex;border-top:1px solid #f3f4f6;margin-top:8px;margin-left:-12px;margin-right:-12px;margin-bottom:-12px}
+.prod-card-btns button{flex:1;padding:7px 4px;background:none;border:none;cursor:pointer;font-size:12px;font-weight:600;color:#374151;transition:background .12s}
+.prod-card-btns button:first-child{border-right:1px solid #f3f4f6;border-radius:0 0 0 8px}
+.prod-card-btns button:last-child{border-radius:0 0 8px 0;color:#2563eb}
+.prod-card-btns button:hover:not(:disabled){background:#f0fdf4}
+.prod-card-btns button:last-child:hover:not(:disabled){background:#eff6ff}
+.prod-card-btns button:disabled{opacity:.35;cursor:not-allowed}
 .warn-banner{background:#fef9c3;border:1px solid #fde68a;color:#92400e;padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:10px;display:none}
 /* ── PROVEEDORES ── */
 .prov-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;padding:16px 18px}
@@ -188,12 +193,6 @@ select.ss{font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:
       <div class="field"><label>Categoria</label><select id="pm-cat"></select></div>
       <div class="field"><label>Estado</label>
         <select id="pm-avail"><option value="true">Activo</option><option value="false">Inactivo</option></select>
-      </div>
-      <div class="field full" style="background:#eff6ff;border-radius:6px;padding:10px 12px;border:1px solid #dbeafe">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:500;color:#1e40af">
-          <input type="checkbox" id="pm-weight" style="width:16px;height:16px;accent-color:#2563eb">
-          ⚖️ Se vende por peso (kg) — al agregarlo a la caja pedirá ingresar el peso
-        </label>
       </div>
     </div>
     <div class="form-actions">
@@ -389,7 +388,6 @@ async function toggleProduct(id,available){ await db.from('products').update({av
 function openNewProduct(){
   document.getElementById('pm-id').value='';['pm-name','pm-desc','pm-price','pm-cost'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('pm-stock').value='0'; document.getElementById('pm-avail').value='true';
-  document.getElementById('pm-weight').checked=false;
   document.getElementById('pm-margen').textContent='';
   document.getElementById('prod-modal-title').textContent='Nuevo producto';
   const sel=document.getElementById('pm-cat');
@@ -402,7 +400,6 @@ function openEditProduct(id){
     document.getElementById('pm-desc').value=p.description||''; document.getElementById('pm-price').value=p.price;
     document.getElementById('pm-cost').value=p.cost_price||''; document.getElementById('pm-stock').value=p.stock??0;
     document.getElementById('pm-avail').value=String(p.available);
-    document.getElementById('pm-weight').checked=!!p.sold_by_weight;
     document.getElementById('prod-modal-title').textContent='Editar producto';
     const sel=document.getElementById('pm-cat');
     sel.innerHTML='<option value="">Sin categoria</option>'+_cats.map(c=>`<option value="${c.id}"${c.id===p.category_id?' selected':''}>${c.name}</option>`).join('');
@@ -428,7 +425,6 @@ async function saveProduct(){
   const costVal=parseFloat(document.getElementById('pm-cost').value)||null;
   const payload={name,description:document.getElementById('pm-desc').value.trim()||null,price,
     cost_price:costVal,
-    sold_by_weight:document.getElementById('pm-weight').checked,
     stock:parseInt(document.getElementById('pm-stock').value)||0,
     category_id:document.getElementById('pm-cat').value||null,
     available:document.getElementById('pm-avail').value==='true'};
@@ -734,18 +730,21 @@ function renderProdGrid(prods){
   if(!prods?.length){grid.innerHTML='<div class="em" style="grid-column:1/-1">Sin productos</div>';return;}
   grid.innerHTML=prods.map(p=>{
     const s=p.stock??0;
-    const isPeso=!!p.sold_by_weight;
-    const inCart=_carrito[p.id]?.qty||0;
-    const inCartLabel=isPeso&&inCart>0?`${inCart.toFixed(3)}kg`:inCart>0?String(inCart):'';
-    const clickFn=s>0?(isPeso?`abrirPesoModal('${p.id}')`:`addToCart('${p.id}')`):'';
-    const priceLabel=isPeso?`$${Number(p.price).toLocaleString('es-AR')}/kg`:`$${Number(p.price).toLocaleString('es-AR')}`;
-    const stockLabel=s>0?(isPeso?`Stock: ~${s}kg`:`Stock: ${s}`):'❌ Sin stock';
-    return `<div class="prod-card${isPeso?' peso-card':''}${s===0?' no-stk':''}" onclick="${clickFn}" title="${s===0?'Sin stock':isPeso?'Ingresar peso':'Agregar al carrito'}">
-      ${isPeso?'<span class="peso-badge">⚖️ kg</span>':''}
+    const inCart=_carrito[p.id];
+    const inCartQty=inCart?.qty||0;
+    const inCartLabel=inCart?.isPeso&&inCartQty>0?`${inCartQty.toFixed(3)}kg`:inCartQty>0?`${inCartQty}u`:'';
+    const disabled=s===0?'disabled':'';
+    return `<div class="prod-card${s===0?' no-stk':''}" style="padding-bottom:0">
       ${inCartLabel?`<span class="pin-badge">${inCartLabel}</span>`:''}
-      <div class="pn">${p.name}</div>
-      <div class="pp">${priceLabel}</div>
-      <div class="ps">${stockLabel}</div>
+      <div class="prod-card-body">
+        <div class="pn">${p.name}</div>
+        <div class="pp">$${Number(p.price).toLocaleString('es-AR')}</div>
+        <div class="ps">${s>0?`Stock: ${s}`:'❌ Sin stock'}</div>
+      </div>
+      <div class="prod-card-btns">
+        <button ${disabled} onclick="addToCart('${p.id}')" title="Agregar 1 unidad">＋ Unidad</button>
+        <button ${disabled} onclick="abrirPesoModal('${p.id}')" title="Ingresar peso en kg">⚖️ Peso</button>
+      </div>
     </div>`;
   }).join('');
 }
