@@ -339,8 +339,25 @@ async function renderProductos(search='') {
   if(search) document.getElementById('prod-search').focus();
 }
 async function updateStock(id){
-  await db.from('products').update({stock:parseInt(document.getElementById('stk_'+id).value)}).eq('id',id);
-  renderProductos(document.getElementById('prod-search')?.value||'');
+  // Soporte para input en tab Productos (stk_) y en tab Stock (stk2_)
+  const el=document.getElementById('stk_'+id)||document.getElementById('stk2_'+id);
+  if(!el) return;
+  const newQty=parseInt(el.value)||0;
+  const {data:cur}=await db.from('products').select('stock,name').eq('id',id).single();
+  const oldQty=cur?.stock??0;
+  await db.from('products').update({stock:newQty}).eq('id',id);
+  if(newQty!==oldQty){
+    await db.from('stock_movements').insert({
+      product_id:id, product_name:cur?.name||'',
+      movement_type: newQty>oldQty?'entrada':'salida',
+      quantity: newQty-oldQty,
+      source:'manual', notes:`Ajuste manual en panel (${oldQty} → ${newQty})`
+    });
+  }
+  showToast(`Stock actualizado: ${oldQty} → ${newQty}`,'ok');
+  // Refrescar la tab que esté activa
+  if(document.getElementById('stk_'+id)) renderProductos(document.getElementById('prod-search')?.value||'');
+  else renderStock();
 }
 async function toggleProduct(id,available){ await db.from('products').update({available}).eq('id',id); renderProductos(); }
 function openNewProduct(){
@@ -920,29 +937,180 @@ async function eliminarGasto(id){
 }
 
 // ──── STOCK ──────────────────────────────────────────────────────────────────
-async function renderStock(){
-  const {data:mvs}=await db.from('stock_movements').select('*').order('created_at',{ascending:false}).limit(200);
-  const entradas=mvs?.filter(m=>m.movement_type==='entrada').reduce((s,m)=>s+m.quantity,0)||0;
-  const salidas=mvs?.filter(m=>m.movement_type==='salida').reduce((s,m)=>s+Math.abs(m.quantity),0)||0;
-  const rows=mvs?.map(m=>`<tr>
-    <td>${new Date(m.created_at).toLocaleString('es-AR')}</td>
+async function renderStock(filtro='todos'){
+  const [{data:prods},{data:mvs},{data:provs}]=await Promise.all([
+    db.from('products').select('id,name,stock,price').eq('available',true).order('name'),
+    db.from('stock_movements').select('*').order('created_at',{ascending:false}).limit(300),
+    db.from('proveedores').select('id,nombre').order('nombre')
+  ]);
+
+  const entradas=(mvs||[]).filter(m=>m.movement_type==='entrada').reduce((s,m)=>s+Number(m.quantity),0);
+  const salidas=(mvs||[]).filter(m=>m.movement_type==='salida').reduce((s,m)=>s+Math.abs(Number(m.quantity)),0);
+  const sinStock=(prods||[]).filter(p=>(p.stock??0)===0).length;
+
+  // Filtrar movimientos
+  const mvsFilt=filtro==='todos'?(mvs||[]):(mvs||[]).filter(m=>m.movement_type===filtro);
+  const rowsMvs=mvsFilt.map(m=>`<tr>
+    <td style="white-space:nowrap">${new Date(m.created_at).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</td>
     <td><strong>${m.product_name}</strong></td>
     <td><span class="b ${m.movement_type==='entrada'?'bg':m.movement_type==='salida'?'br':'by'}">${m.movement_type}</span></td>
-    <td>${m.quantity>0?'+':''}${m.quantity}</td>
+    <td style="font-weight:700;color:${Number(m.quantity)>0?'#16a34a':'#dc2626'}">${Number(m.quantity)>0?'+':''}${m.quantity}</td>
     <td><span class="b bb">${m.source}</span></td>
-    <td style="color:#6b7280">${m.notes||'-'}</td>
+    <td style="color:#6b7280;font-size:12px">${m.notes||'-'}</td>
   </tr>`).join('')||'<tr><td colspan="6" class="em">Sin movimientos</td></tr>';
+
+  // Stock actual
+  const rowsProds=(prods||[]).map(p=>{
+    const s=p.stock??0;
+    const cl=s===0?'color:#dc2626':s<=5?'color:#ea580c':'color:#16a34a';
+    return `<tr>
+      <td><strong>${p.name}</strong></td>
+      <td style="font-weight:700;${cl}">${s}</td>
+      <td>$${Number(p.price).toLocaleString('es-AR')}</td>
+      <td><input class="sn" type="number" value="${s}" min="0" id="stk2_${p.id}">
+        <button class="btn bto" style="margin-left:4px" onclick="updateStock('${p.id}')">OK</button>
+      </td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="4" class="em">Sin productos</td></tr>';
+
+  const provOpts=(provs||[]).map(p=>`<option value="${p.nombre}">${p.nombre}</option>`).join('');
+  const prodOpts=(prods||[]).map(p=>`<option value="${p.id}" data-name="${p.name}">${p.name} (stock: ${p.stock??0})</option>`).join('');
+
   document.getElementById('content').innerHTML=`
     <div class="stats">
       <div class="st"><div class="l">Movimientos</div><div class="v">${mvs?.length||0}</div></div>
-      <div class="st"><div class="l">Total entradas</div><div class="v" style="color:#16a34a">+${entradas}</div></div>
-      <div class="st"><div class="l">Total salidas</div><div class="v" style="color:#dc2626">-${salidas}</div></div>
+      <div class="st"><div class="l">Entradas (total)</div><div class="v" style="color:#16a34a">+${entradas}</div></div>
+      <div class="st"><div class="l">Salidas (total)</div><div class="v" style="color:#dc2626">-${salidas}</div></div>
+      <div class="st"><div class="l">Sin stock</div><div class="v" style="color:#dc2626">${sinStock}</div></div>
     </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px" class="dash-2col">
+
+      <!-- Formulario de entrada -->
+      <div class="card">
+        <div class="ch"><h2>📦 Registrar entrada de mercadería</h2></div>
+        <div class="prov-form">
+          <div class="full"><label>Producto *</label>
+            <select id="se-prod"><option value="">— Elegí un producto —</option>${prodOpts}</select>
+          </div>
+          <div><label>Cantidad *</label><input type="number" id="se-qty" min="0.01" step="0.01" placeholder="Ej: 30"></div>
+          <div><label>Unidad</label>
+            <select id="se-unit"><option value="u">Unidades</option><option value="kg">Kg</option><option value="cajones">Cajones</option><option value="bolsas">Bolsas</option><option value="docenas">Docenas</option></select>
+          </div>
+          <div><label>Proveedor</label>
+            <input id="se-prov" list="se-prov-list" placeholder="Nombre del proveedor">
+            <datalist id="se-prov-list">${provOpts}</datalist>
+          </div>
+          <div><label>Costo unitario (opcional)</label>
+            <input type="number" id="se-costo" min="0" step="0.01" placeholder="0.00" oninput="calcCostoTotal()">
+          </div>
+          <div><label>Total estimado</label>
+            <input type="number" id="se-total" readonly placeholder="auto" style="background:#f9fafb">
+          </div>
+          <div class="full"><label>Notas</label><input id="se-notas" placeholder="Ej: Lote fresco, llegó en buen estado"></div>
+          <div class="full">
+            <button class="btn btg" style="padding:10px 28px" onclick="registrarEntrada()">✅ Registrar entrada</button>
+            <span id="se-status" style="margin-left:12px;font-size:12px;color:#6b7280"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stock actual -->
+      <div class="card">
+        <div class="ch"><h2>📊 Stock actual</h2></div>
+        <div style="max-height:380px;overflow-y:auto">
+          <table><thead><tr><th>Producto</th><th>Stock</th><th>Precio</th><th>Ajustar</th></tr></thead>
+          <tbody>${rowsProds}</tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Historial -->
     <div class="card">
-      <div class="ch"><h2>Movimientos de stock</h2></div>
+      <div class="ch">
+        <h2>Historial de movimientos</h2>
+        <div class="search-bar">
+          <select class="ss" onchange="renderStock(this.value)" style="padding:6px 10px">
+            <option value="todos"${filtro==='todos'?' selected':''}>Todos</option>
+            <option value="entrada"${filtro==='entrada'?' selected':''}>Solo entradas</option>
+            <option value="salida"${filtro==='salida'?' selected':''}>Solo salidas</option>
+            <option value="ajuste"${filtro==='ajuste'?' selected':''}>Solo ajustes</option>
+            <option value="compra"${filtro==='compra'?' selected':''}>Compras (bot)</option>
+          </select>
+        </div>
+      </div>
       <table><thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cantidad</th><th>Fuente</th><th>Nota</th></tr></thead>
-      <tbody>${rows}</tbody></table>
+      <tbody>${rowsMvs}</tbody></table>
     </div>`;
+}
+
+function calcCostoTotal(){
+  const qty=parseFloat(document.getElementById('se-qty')?.value)||0;
+  const costo=parseFloat(document.getElementById('se-costo')?.value)||0;
+  const tot=document.getElementById('se-total');
+  if(tot) tot.value=(qty*costo>0?(qty*costo).toFixed(2):'');
+}
+
+async function registrarEntrada(){
+  const prodId=document.getElementById('se-prod').value;
+  const qty=parseFloat(document.getElementById('se-qty').value)||0;
+  const unit=document.getElementById('se-unit').value;
+  const prov=document.getElementById('se-prov').value.trim()||null;
+  const costoUnit=parseFloat(document.getElementById('se-costo').value)||0;
+  const notas=document.getElementById('se-notas').value.trim()||null;
+  const status=document.getElementById('se-status');
+
+  if(!prodId){alert('Elegí un producto');return;}
+  if(qty<=0){alert('La cantidad debe ser mayor a 0');return;}
+
+  const prodSel=document.getElementById('se-prod');
+  const prodName=prodSel.options[prodSel.selectedIndex]?.dataset.name||'';
+
+  status.textContent='Guardando...';
+  try {
+    // 1. Actualizar stock
+    const {data:cur}=await db.from('products').select('stock').eq('id',prodId).single();
+    const oldStock=cur?.stock??0;
+    const newStock=oldStock+qty;
+    await db.from('products').update({stock:newStock}).eq('id',prodId);
+
+    // 2. Registrar movimiento
+    await db.from('stock_movements').insert({
+      product_id:prodId, product_name:prodName,
+      movement_type:'entrada', quantity:qty,
+      source: prov?'compra':'manual',
+      notes:`${unit!=='u'?qty+' '+unit+' de ':qty+' '}${prodName}${prov?' — '+prov:''}${notas?' · '+notas:''}`
+    });
+
+    // 3. Si tiene costo → registrar gasto automáticamente
+    if(costoUnit>0){
+      const total=qty*costoUnit;
+      await db.from('gastos').insert({
+        fecha:new Date().toISOString().slice(0,10),
+        categoria:'Mercadería / Fruta y Verdura',
+        descripcion:`Compra ${qty}${unit!=='u'?' '+unit:''} ${prodName}${prov?' — '+prov:''}`,
+        proveedor:prov, monto:total, iva_credito:0, total,
+        forma_pago:'Efectivo', deducible:true, notas:'Registrado desde panel web'
+      });
+    }
+
+    // 4. Si hay proveedor nuevo → crear en tabla proveedores
+    if(prov){
+      const {data:ep}=await db.from('proveedores').select('id').ilike('nombre',`%${prov}%`).maybeSingle();
+      if(!ep) await db.from('proveedores').insert({nombre:prov,productos:prodName,notas:'Creado automáticamente desde panel'});
+    }
+
+    showToast(`✅ Entrada registrada: +${qty} ${prodName} (${oldStock} → ${newStock})`, 'ok');
+    // Limpiar form
+    ['se-prod','se-qty','se-costo','se-total','se-notas','se-prov'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.value='';
+    });
+    status.textContent='';
+    renderStock();
+  } catch(e){
+    status.textContent='Error al guardar';
+    console.error(e);
+  }
 }
 
 // ──── MENSAJES ───────────────────────────────────────────────────────────────
