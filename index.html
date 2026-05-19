@@ -100,6 +100,35 @@ select.ss{font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:
 .items-table tr:last-child td{border-bottom:none}
 /* Nav badge */
 .nav-badge{background:#dc2626;color:#fff;border-radius:99px;font-size:10px;padding:1px 6px;margin-left:4px;vertical-align:middle}
+/* ── DASHBOARD KPI ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:18px}
+.kpi{background:#fff;border-radius:8px;border:1px solid #e5e7eb;padding:18px 16px;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%}
+.kpi.green::before{background:#16a34a}.kpi.red::before{background:#dc2626}.kpi.orange::before{background:#ea580c}.kpi.blue::before{background:#2563eb}.kpi.purple::before{background:#7c3aed}
+.kpi .ki{font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.kpi .kv{font-size:30px;font-weight:800;color:#111;line-height:1.1}
+.kpi .ks{font-size:11px;color:#9ca3af;margin-top:4px}
+/* ── BAR CHART ── */
+.chart-wrap{padding:16px 18px}
+.bar-chart{display:flex;align-items:flex-end;gap:8px;height:160px;padding-bottom:28px;position:relative}
+.bar-chart::after{content:'';position:absolute;bottom:28px;left:0;right:0;height:1px;background:#e5e7eb}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:0;height:100%;justify-content:flex-end}
+.bar{width:100%;background:#bbf7d0;border-radius:4px 4px 0 0;min-height:3px;transition:background .15s;position:relative}
+.bar:hover{background:#16a34a}
+.bar .bar-tip{position:absolute;top:-26px;left:50%;transform:translateX(-50%);background:#111;color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s;z-index:10}
+.bar:hover .bar-tip{opacity:1}
+.bar-label{font-size:10px;color:#6b7280;text-align:center;margin-top:4px;white-space:nowrap}
+/* ── CLIENTES ── */
+.badge-rank{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:700;background:#dcfce7;color:#15803d}
+/* ── COST / MARGEN ── */
+.margin-pill{display:inline-block;padding:1px 7px;border-radius:99px;font-size:11px;font-weight:600}
+.margin-ok{background:#dcfce7;color:#15803d}.margin-low{background:#fef9c3;color:#ca8a04}.margin-neg{background:#fee2e2;color:#dc2626}
+@media(max-width:800px){.dash-2col{grid-template-columns:1fr!important}}
+/* ── PROVEEDORES ── */
+.prov-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;padding:16px 18px}
+.prov-form .full{grid-column:1/-1}
+.prov-form input,.prov-form select,.prov-form textarea{padding:7px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;width:100%}
+.prov-form label{display:block;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;margin-bottom:3px}
 </style>
 </head>
 <body>
@@ -124,13 +153,17 @@ select.ss{font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:
     </div>
   </header>
   <nav>
-    <button class="on" onclick="showTab('productos',this)">Productos</button>
+    <button class="on" onclick="showTab('dashboard',this)">📊 Dashboard</button>
+    <button onclick="showTab('productos',this)">Productos</button>
     <button onclick="showTab('pedidos',this)">Pedidos</button>
     <button onclick="showTab('caja',this)">🛒 Caja</button>
     <button onclick="showTab('gastos',this)">💸 Gastos</button>
     <button onclick="showTab('stock',this)">Stock</button>
     <button onclick="showTab('mensajes',this)">WhatsApp</button>
     <button onclick="showTab('fiado',this)" id="nav-fiado">💳 Fiado</button>
+    <button onclick="showTab('reportes',this)">📈 Reportes</button>
+    <button onclick="showTab('clientes',this)">👥 Clientes</button>
+    <button onclick="showTab('proveedores',this)">🚚 Proveedores</button>
   </nav>
   <main id="content"><div class="em">Cargando...</div></main>
 </div>
@@ -144,7 +177,8 @@ select.ss{font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:
       <input type="hidden" id="pm-id">
       <div class="field full"><label>Nombre *</label><input id="pm-name" placeholder="Ej: Tomate redondo"></div>
       <div class="field full"><label>Descripcion</label><textarea id="pm-desc" placeholder="Opcional"></textarea></div>
-      <div class="field"><label>Precio *</label><input id="pm-price" type="number" min="0" step="0.01"></div>
+      <div class="field"><label>Precio de venta *</label><input id="pm-price" type="number" min="0" step="0.01" oninput="calcMargen()"></div>
+      <div class="field"><label>Costo (opcional)</label><input id="pm-cost" type="number" min="0" step="0.01" placeholder="0.00" oninput="calcMargen()"><small id="pm-margen" style="color:#6b7280;font-size:11px;margin-top:2px;display:block"></small></div>
       <div class="field"><label>Stock</label><input id="pm-stock" type="number" min="0" value="0"></div>
       <div class="field"><label>Categoria</label><select id="pm-cat"></select></div>
       <div class="field"><label>Estado</label>
@@ -210,7 +244,7 @@ function doLogin() {
     sessionStorage.setItem('nf_admin','1');
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app').style.display='block';
-    showTab('productos', document.querySelector('nav button'));
+    showTab('dashboard', document.querySelector('nav button'));
     initAlerts();
   } else {
     const err = document.getElementById('login-err');
@@ -222,7 +256,7 @@ document.getElementById('pwd').addEventListener('keydown', e=>{ if(e.key==='Ente
 if (sessionStorage.getItem('nf_admin')) {
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
-  showTab('productos', document.querySelector('nav button'));
+  showTab('dashboard', document.querySelector('nav button'));
   initAlerts();
 }
 
@@ -230,20 +264,24 @@ function showTab(tab, btn) {
   document.querySelectorAll('nav button').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
   document.getElementById('content').innerHTML='<div class="em">Cargando...</div>';
-  if      (tab==='productos') renderProductos();
-  else if (tab==='pedidos')   renderPedidos();
-  else if (tab==='caja')      renderCaja();
-  else if (tab==='gastos')    renderGastos();
-  else if (tab==='stock')     renderStock();
-  else if (tab==='mensajes')  renderMensajes();
-  else if (tab==='fiado')     renderFiado();
+  if      (tab==='dashboard')   renderDashboard();
+  else if (tab==='productos')   renderProductos();
+  else if (tab==='pedidos')     renderPedidos();
+  else if (tab==='caja')        renderCaja();
+  else if (tab==='gastos')      renderGastos();
+  else if (tab==='stock')       renderStock();
+  else if (tab==='mensajes')    renderMensajes();
+  else if (tab==='fiado')       renderFiado();
+  else if (tab==='reportes')    renderReportes();
+  else if (tab==='clientes')    renderClientes();
+  else if (tab==='proveedores') renderProveedores();
 }
 function closeModal(e){ if(e.target.classList.contains('modal-bg')) e.target.classList.remove('open'); }
 
 // ──── PRODUCTOS ──────────────────────────────────────────────────────────────
 async function renderProductos(search='') {
   const [{ data: prods },{ data: cats }] = await Promise.all([
-    db.from('products').select('id,name,description,price,stock,available,category_id').order('name'),
+    db.from('products').select('*').order('name'),
     db.from('categories').select('id,name').order('name')
   ]);
   _cats = cats||[];
@@ -252,14 +290,24 @@ async function renderProductos(search='') {
   const sinStock=prods?.filter(p=>(p.stock??0)===0).length||0;
   const lowStock=prods?.filter(p=>(p.stock??0)>0&&(p.stock??0)<=5).length||0;
   let filtered = (prods||[]).filter(p=>!search||p.name.toLowerCase().includes(search.toLowerCase()));
+  const hasCost = filtered.some(p=>p.cost_price>0);
   const rows = filtered.map(p=>{
     const s=p.stock??0;
     const rc=s===0?'no-stock':s<=5?'low-stock':'';
     const sb=s===0?'<span class="b br">Sin stock</span>':s<=5?`<span class="b bo">${s} ⚠️</span>`:s;
+    let margenCell='';
+    if(hasCost){
+      if(p.cost_price>0&&p.price>0){
+        const mg=((p.price-p.cost_price)/p.price*100).toFixed(0);
+        const cls=mg>=30?'margin-ok':mg>=10?'margin-low':'margin-neg';
+        margenCell=`<span class="margin-pill ${cls}">${mg}%</span>`;
+      } else { margenCell='<span style="color:#d1d5db">—</span>'; }
+    }
     return `<tr class="${rc}">
       <td><strong>${p.name}</strong>${p.description?`<br><small style="color:#9ca3af">${p.description}</small>`:''}</td>
       <td>${cm[p.category_id]||'-'}</td>
       <td>$${Number(p.price).toLocaleString('es-AR')}</td>
+      ${hasCost?`<td>${margenCell}</td>`:''}
       <td><input class="sn" type="number" value="${s}" min="0" id="stk_${p.id}">
         <button class="btn bto" style="margin-left:4px" onclick="updateStock('${p.id}')">OK</button></td>
       <td>${sb}</td>
@@ -268,7 +316,7 @@ async function renderProductos(search='') {
         <button class="btn bto" onclick="openEditProduct('${p.id}')">✏️</button>
         <button class="btn bto" style="margin-left:4px" onclick="toggleProduct('${p.id}',${!p.available})">${p.available?'Desactivar':'Activar'}</button>
       </td></tr>`;
-  }).join('')||'<tr><td colspan="7" class="em">Sin productos</td></tr>';
+  }).join('')||`<tr><td colspan="${hasCost?8:7}" class="em">Sin productos</td></tr>`;
 
   document.getElementById('content').innerHTML=`
     <div class="stats">
@@ -285,7 +333,7 @@ async function renderProductos(search='') {
           <button class="btn btg" onclick="openNewProduct()">+ Nuevo</button>
         </div>
       </div>
-      <table><thead><tr><th>Producto</th><th>Categoria</th><th>Precio</th><th>Stock</th><th>Estado</th><th>Disponible</th><th>Acciones</th></tr></thead>
+      <table><thead><tr><th>Producto</th><th>Categoria</th><th>Precio</th>${hasCost?'<th>Margen</th>':''}<th>Stock</th><th>Estado</th><th>Disponible</th><th>Acciones</th></tr></thead>
       <tbody>${rows}</tbody></table>
     </div>`;
   if(search) document.getElementById('prod-search').focus();
@@ -296,8 +344,9 @@ async function updateStock(id){
 }
 async function toggleProduct(id,available){ await db.from('products').update({available}).eq('id',id); renderProductos(); }
 function openNewProduct(){
-  document.getElementById('pm-id').value='';['pm-name','pm-desc','pm-price'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('pm-id').value='';['pm-name','pm-desc','pm-price','pm-cost'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('pm-stock').value='0'; document.getElementById('pm-avail').value='true';
+  document.getElementById('pm-margen').textContent='';
   document.getElementById('prod-modal-title').textContent='Nuevo producto';
   const sel=document.getElementById('pm-cat');
   sel.innerHTML='<option value="">Sin categoria</option>'+_cats.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
@@ -307,23 +356,44 @@ function openEditProduct(id){
   db.from('products').select('*').eq('id',id).single().then(({data:p})=>{
     document.getElementById('pm-id').value=p.id; document.getElementById('pm-name').value=p.name;
     document.getElementById('pm-desc').value=p.description||''; document.getElementById('pm-price').value=p.price;
-    document.getElementById('pm-stock').value=p.stock??0; document.getElementById('pm-avail').value=String(p.available);
+    document.getElementById('pm-cost').value=p.cost_price||''; document.getElementById('pm-stock').value=p.stock??0;
+    document.getElementById('pm-avail').value=String(p.available);
     document.getElementById('prod-modal-title').textContent='Editar producto';
     const sel=document.getElementById('pm-cat');
     sel.innerHTML='<option value="">Sin categoria</option>'+_cats.map(c=>`<option value="${c.id}"${c.id===p.category_id?' selected':''}>${c.name}</option>`).join('');
     document.getElementById('prod-modal').classList.add('open');
+    calcMargen();
   });
+}
+function calcMargen(){
+  const precio=parseFloat(document.getElementById('pm-price').value)||0;
+  const costo=parseFloat(document.getElementById('pm-cost').value)||0;
+  const el=document.getElementById('pm-margen');
+  if(!el) return;
+  if(costo>0&&precio>0){
+    const mg=((precio-costo)/precio*100).toFixed(1);
+    const color=mg>=30?'#16a34a':mg>=10?'#ca8a04':'#dc2626';
+    el.innerHTML=`Margen: <strong style="color:${color}">${mg}%</strong> ($${(precio-costo).toLocaleString('es-AR')} ganancia)`;
+  } else { el.textContent=''; }
 }
 async function saveProduct(){
   const id=document.getElementById('pm-id').value, name=document.getElementById('pm-name').value.trim();
   const price=parseFloat(document.getElementById('pm-price').value);
   if(!name||isNaN(price)){alert('Nombre y precio son obligatorios');return;}
+  const costVal=parseFloat(document.getElementById('pm-cost').value)||null;
   const payload={name,description:document.getElementById('pm-desc').value.trim()||null,price,
+    cost_price:costVal,
     stock:parseInt(document.getElementById('pm-stock').value)||0,
     category_id:document.getElementById('pm-cat').value||null,
     available:document.getElementById('pm-avail').value==='true'};
-  if(id) await db.from('products').update(payload).eq('id',id);
-  else    await db.from('products').insert(payload);
+  const {error}=id ? await db.from('products').update(payload).eq('id',id)
+                   : await db.from('products').insert(payload);
+  if(error&&error.message?.includes('cost_price')){
+    // column doesn't exist yet — save without it
+    delete payload.cost_price;
+    if(id) await db.from('products').update(payload).eq('id',id);
+    else    await db.from('products').insert(payload);
+  }
   document.getElementById('prod-modal').classList.remove('open'); renderProductos();
 }
 
@@ -976,6 +1046,289 @@ async function eliminarFiado(id, nombre) {
   await db.from('fiado').delete().eq('id', id);
   showToast(`Fiado de ${nombre} eliminado`, 'info');
   renderFiado();
+}
+
+// ──── DASHBOARD ──────────────────────────────────────────────────────────────
+async function renderDashboard(){
+  const today=new Date().toISOString().slice(0,10);
+  const [
+    {data:ordersHoy},
+    {data:pedsPend},
+    {data:sinStockProds},
+    {data:fiadoList},
+    {data:ultimosPeds},
+    {data:stockBajoProds}
+  ] = await Promise.all([
+    db.from('orders').select('total,delivery_type').gte('created_at',today+'T00:00:00').lte('created_at',today+'T23:59:59'),
+    db.from('orders').select('id').in('status',['pendiente','confirmada','preparando']),
+    db.from('products').select('id').eq('stock',0).eq('available',true),
+    db.from('fiado').select('saldo').gt('saldo',0),
+    db.from('orders').select('id,order_number,nombre,apellido,total,status,created_at,delivery_type').order('created_at',{ascending:false}).limit(8),
+    db.from('products').select('id,name,stock,price').gt('stock',0).lte('stock',5).eq('available',true).order('stock').limit(10)
+  ]);
+  const ventasHoy=(ordersHoy||[]).reduce((s,o)=>s+Number(o.total),0);
+  const pedsCaja=(ordersHoy||[]).filter(o=>o.delivery_type==='caja').length;
+  const pedsWA=(ordersHoy||[]).length-pedsCaja;
+  const cantPend=pedsPend?.length||0;
+  const cantSinStock=sinStockProds?.length||0;
+  const fiadoTotal=(fiadoList||[]).reduce((s,c)=>s+Number(c.saldo),0);
+
+  const STATUS_BADGE={pendiente:'bgr',confirmada:'bb',preparando:'by',lista:'bo','en camino':'btp',entregada:'bg',cancelada:'br'};
+  const rowsUlt=(ultimosPeds||[]).map(o=>`<tr>
+    <td><strong>#${o.order_number}</strong></td>
+    <td>${o.nombre} ${o.apellido||''}</td>
+    <td>$${Number(o.total).toLocaleString('es-AR')}</td>
+    <td><span class="b ${STATUS_BADGE[o.status]||'bgr'}">${o.status}</span></td>
+    <td>${new Date(o.created_at).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}</td>
+  </tr>`).join('')||'<tr><td colspan="5" class="em">Sin pedidos hoy</td></tr>';
+
+  const rowsStk=(stockBajoProds||[]).map(p=>`<tr>
+    <td><strong>${p.name}</strong></td>
+    <td><span class="b bo">${p.stock} unid.</span></td>
+    <td>$${Number(p.price).toLocaleString('es-AR')}</td>
+  </tr>`).join('')||'<tr><td colspan="3" class="em">Sin productos en riesgo</td></tr>';
+
+  const alertas=[];
+  if(cantSinStock>0) alertas.push(`<div class="alert" style="background:#fef2f2;border-color:#fecaca;color:#dc2626">🚫 <strong>${cantSinStock} producto${cantSinStock>1?'s':''}</strong> sin stock — revisá el inventario</div>`);
+  if(cantPend>3) alertas.push(`<div class="alert" style="background:#fef9c3;border-color:#fde68a;color:#92400e">⏳ <strong>${cantPend} pedidos</strong> pendientes sin procesar</div>`);
+  if(fiadoTotal>5000) alertas.push(`<div class="alert">💳 <strong>$${fiadoTotal.toLocaleString('es-AR')}</strong> en fiado sin cobrar</div>`);
+
+  document.getElementById('content').innerHTML=`
+    ${alertas.join('')}
+    <div class="kpi-grid">
+      <div class="kpi green">
+        <div class="ki">Ventas hoy</div>
+        <div class="kv">$${ventasHoy.toLocaleString('es-AR')}</div>
+        <div class="ks">${(ordersHoy||[]).length} pedidos · ${pedsWA} WA · ${pedsCaja} caja</div>
+      </div>
+      <div class="kpi orange">
+        <div class="ki">Pedidos pendientes</div>
+        <div class="kv">${cantPend}</div>
+        <div class="ks">pendiente + confirmado + preparando</div>
+      </div>
+      <div class="kpi red">
+        <div class="ki">Sin stock</div>
+        <div class="kv">${cantSinStock}</div>
+        <div class="ks">productos activos en 0</div>
+      </div>
+      <div class="kpi blue">
+        <div class="ki">Fiado a cobrar</div>
+        <div class="kv">$${fiadoTotal.toLocaleString('es-AR')}</div>
+        <div class="ks">${fiadoList?.length||0} clientes con saldo</div>
+      </div>
+    </div>
+    <div class="dash-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="card">
+        <div class="ch"><h2>Últimos pedidos</h2></div>
+        <table><thead><tr><th>#</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Hora</th></tr></thead>
+        <tbody>${rowsUlt}</tbody></table>
+      </div>
+      <div class="card">
+        <div class="ch"><h2>⚠️ Stock bajo (≤5 unid.)</h2></div>
+        <table><thead><tr><th>Producto</th><th>Stock</th><th>Precio</th></tr></thead>
+        <tbody>${rowsStk}</tbody></table>
+      </div>
+    </div>`;
+}
+
+// ──── REPORTES ────────────────────────────────────────────────────────────────
+async function renderReportes(){
+  const today=new Date();
+  const hace7=new Date(today); hace7.setDate(today.getDate()-6);
+  const desde7=hace7.toISOString().slice(0,10);
+  const mesStart=today.toISOString().slice(0,7)+'-01';
+
+  const [{data:orders7},{data:topItems},{data:mesOrders}]=await Promise.all([
+    db.from('orders').select('created_at,total').gte('created_at',desde7+'T00:00:00').neq('status','cancelada').order('created_at'),
+    db.from('order_items').select('product_name_snapshot,quantity,subtotal').order('subtotal',{ascending:false}).limit(500),
+    db.from('orders').select('created_at,total').gte('created_at',mesStart+'T00:00:00').neq('status','cancelada')
+  ]);
+
+  // Ventas por día (últimos 7)
+  const dias=[];
+  for(let i=6;i>=0;i--){const d=new Date(today);d.setDate(today.getDate()-i);dias.push(d.toISOString().slice(0,10));}
+  const ventasPorDia=dias.map(d=>{
+    const v=(orders7||[]).filter(o=>o.created_at?.slice(0,10)===d).reduce((s,o)=>s+Number(o.total),0);
+    const label=new Date(d+'T12:00:00').toLocaleDateString('es-AR',{weekday:'short',day:'numeric'});
+    return {d,v,label};
+  });
+  const maxV=Math.max(...ventasPorDia.map(x=>x.v),1);
+  const barsHtml=ventasPorDia.map(x=>{
+    const h=Math.max(Math.round((x.v/maxV)*140),x.v>0?4:0);
+    return `<div class="bar-col">
+      <div class="bar" style="height:${h}px">
+        <div class="bar-tip">$${x.v.toLocaleString('es-AR')}</div>
+      </div>
+      <div class="bar-label">${x.label}</div>
+    </div>`;
+  }).join('');
+  const totalSemana=ventasPorDia.reduce((s,x)=>s+x.v,0);
+
+  // Top productos más vendidos
+  const prodMap={};
+  (topItems||[]).forEach(i=>{
+    const k=i.product_name_snapshot;
+    if(!prodMap[k]){prodMap[k]={name:k,qty:0,total:0};}
+    prodMap[k].qty+=Number(i.quantity);
+    prodMap[k].total+=Number(i.subtotal);
+  });
+  const topProds=Object.values(prodMap).sort((a,b)=>b.total-a.total).slice(0,10);
+  const rowsTop=topProds.map((p,i)=>`<tr>
+    <td><span class="badge-rank">${i+1}</span></td>
+    <td><strong>${p.name}</strong></td>
+    <td>${p.qty.toLocaleString('es-AR')} unid.</td>
+    <td>$${p.total.toLocaleString('es-AR')}</td>
+  </tr>`).join('')||'<tr><td colspan="4" class="em">Sin datos</td></tr>';
+
+  // Resumen del mes
+  const totalMes=(mesOrders||[]).reduce((s,o)=>s+Number(o.total),0);
+  const promDia=mesOrders?.length? (totalMes/new Date().getDate()).toFixed(0):0;
+
+  document.getElementById('content').innerHTML=`
+    <div class="stats">
+      <div class="st"><div class="l">Total semana</div><div class="v" style="color:#16a34a">$${totalSemana.toLocaleString('es-AR')}</div></div>
+      <div class="st"><div class="l">Ventas del mes</div><div class="v">$${totalMes.toLocaleString('es-AR')}</div></div>
+      <div class="st"><div class="l">Pedidos este mes</div><div class="v">${mesOrders?.length||0}</div></div>
+      <div class="st"><div class="l">Promedio diario</div><div class="v">$${Number(promDia).toLocaleString('es-AR')}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="card">
+        <div class="ch"><h2>📊 Ventas últimos 7 días</h2></div>
+        <div class="chart-wrap">
+          <div class="bar-chart">${barsHtml}</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ch"><h2>🏆 Top productos vendidos</h2></div>
+        <table><thead><tr><th>#</th><th>Producto</th><th>Unidades</th><th>Facturado</th></tr></thead>
+        <tbody>${rowsTop}</tbody></table>
+      </div>
+    </div>`;
+}
+
+// ──── CLIENTES ────────────────────────────────────────────────────────────────
+async function renderClientes(search=''){
+  const {data:orders}=await db.from('orders').select('nombre,apellido,telefono,total,created_at,status').neq('delivery_type','caja').order('created_at',{ascending:false});
+  // Agrupar por teléfono
+  const map={};
+  (orders||[]).forEach(o=>{
+    const tel=(o.telefono||'').trim()||'sin-tel-'+Math.random();
+    if(!map[tel]){map[tel]={nombre:o.nombre,apellido:o.apellido||'',tel:o.telefono||'-',pedidos:0,total:0,ultimo:o.created_at,cancelados:0};}
+    map[tel].pedidos++;
+    map[tel].total+=Number(o.total);
+    if(o.created_at>map[tel].ultimo) map[tel].ultimo=o.created_at;
+    if(o.status==='cancelada') map[tel].cancelados++;
+  });
+  let clientes=Object.values(map).sort((a,b)=>b.total-a.total);
+  if(search){
+    const sq=search.toLowerCase();
+    clientes=clientes.filter(c=>c.nombre.toLowerCase().includes(sq)||c.apellido.toLowerCase().includes(sq)||c.tel.includes(sq));
+  }
+  const rows=clientes.map((c,i)=>`<tr>
+    <td><span class="badge-rank">${i+1}</span></td>
+    <td><strong>${c.nombre} ${c.apellido}</strong></td>
+    <td style="color:#6b7280">${c.tel}</td>
+    <td style="text-align:center">${c.pedidos}</td>
+    <td><strong style="color:#16a34a">$${c.total.toLocaleString('es-AR')}</strong></td>
+    <td style="color:#6b7280;font-size:12px">${new Date(c.ultimo).toLocaleDateString('es-AR')}</td>
+    <td style="text-align:center">${c.cancelados>0?`<span class="b br">${c.cancelados}</span>`:'—'}</td>
+  </tr>`).join('')||'<tr><td colspan="7" class="em">Sin clientes</td></tr>';
+
+  document.getElementById('content').innerHTML=`
+    <div class="stats">
+      <div class="st"><div class="l">Clientes únicos</div><div class="v">${clientes.length}</div></div>
+      <div class="st"><div class="l">Pedidos totales</div><div class="v">${clientes.reduce((s,c)=>s+c.pedidos,0)}</div></div>
+      <div class="st"><div class="l">Facturado total</div><div class="v">$${clientes.reduce((s,c)=>s+c.total,0).toLocaleString('es-AR')}</div></div>
+    </div>
+    <div class="card">
+      <div class="ch"><h2>Base de clientes</h2>
+        <div class="search-bar">
+          <input placeholder="Buscar cliente o teléfono..." oninput="renderClientes(this.value)" value="${search}" style="width:240px">
+        </div>
+      </div>
+      <table><thead><tr><th>#</th><th>Cliente</th><th>Teléfono</th><th style="text-align:center">Pedidos</th><th>Total gastado</th><th>Último pedido</th><th style="text-align:center">Cancelados</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+}
+
+// ──── PROVEEDORES ─────────────────────────────────────────────────────────────
+async function renderProveedores(){
+  const {data:provs,error}=await db.from('proveedores').select('*').order('nombre');
+  if(error){
+    document.getElementById('content').innerHTML=`
+      <div class="alert" style="background:#eff6ff;border-color:#bfdbfe;color:#1e40af">
+        ℹ️ <strong>Tabla "proveedores" no encontrada.</strong> Ejecutá este SQL en Supabase para activar este módulo:
+      </div>
+      <div class="card"><div class="ch"><h2>SQL para crear la tabla</h2></div>
+        <pre style="background:#1e293b;color:#e2e8f0;padding:20px;border-radius:0 0 8px 8px;font-size:12px;overflow-x:auto;white-space:pre-wrap">CREATE TABLE public.proveedores (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  nombre text NOT NULL,
+  contacto text,
+  telefono text,
+  email text,
+  productos text,
+  notas text,
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE public.proveedores ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_all" ON public.proveedores FOR ALL USING (true) WITH CHECK (true);</pre>
+      </div>`;
+    return;
+  }
+  const rows=(provs||[]).map(p=>`<tr>
+    <td><strong>${p.nombre}</strong></td>
+    <td>${p.contacto||'-'}</td>
+    <td>${p.telefono||'-'}</td>
+    <td style="color:#6b7280">${p.email||'-'}</td>
+    <td style="max-width:200px;font-size:12px;color:#374151">${p.productos||'-'}</td>
+    <td style="max-width:180px;font-size:12px;color:#6b7280">${p.notas||'-'}</td>
+    <td style="white-space:nowrap">
+      <button class="btn btr" style="padding:3px 8px" onclick="eliminarProveedor('${p.id}','${p.nombre.replace(/'/g,"\\'")}')">✕</button>
+    </td>
+  </tr>`).join('')||'<tr><td colspan="7" class="em">Sin proveedores registrados</td></tr>';
+
+  document.getElementById('content').innerHTML=`
+    <div class="stats">
+      <div class="st"><div class="l">Proveedores</div><div class="v">${provs?.length||0}</div></div>
+    </div>
+    <div class="card">
+      <div class="ch"><h2>Nuevo proveedor</h2></div>
+      <div class="prov-form">
+        <div><label>Nombre *</label><input id="pv-nombre" placeholder="Ej: Verdulería Mayorista Norte"></div>
+        <div><label>Contacto</label><input id="pv-contacto" placeholder="Nombre persona de contacto"></div>
+        <div><label>Teléfono</label><input id="pv-tel" placeholder="+54 341..."></div>
+        <div><label>Email</label><input id="pv-email" type="email" placeholder="proveedor@ejemplo.com"></div>
+        <div class="full"><label>Productos que provee</label><input id="pv-prods" placeholder="Ej: Tomate, Lechuga, Zanahoria, Papa"></div>
+        <div class="full"><label>Notas</label><textarea id="pv-notas" placeholder="Días de entrega, condiciones, etc." style="min-height:50px"></textarea></div>
+        <div class="full"><button class="btn btg" style="padding:9px 24px" onclick="guardarProveedor()">💾 Guardar Proveedor</button></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch"><h2>Mis proveedores</h2></div>
+      <table><thead><tr><th>Nombre</th><th>Contacto</th><th>Teléfono</th><th>Email</th><th>Productos</th><th>Notas</th><th></th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
+}
+async function guardarProveedor(){
+  const nombre=document.getElementById('pv-nombre').value.trim();
+  if(!nombre){alert('El nombre es obligatorio');return;}
+  const {error}=await db.from('proveedores').insert({
+    nombre,
+    contacto:document.getElementById('pv-contacto').value||null,
+    telefono:document.getElementById('pv-tel').value||null,
+    email:document.getElementById('pv-email').value||null,
+    productos:document.getElementById('pv-prods').value||null,
+    notas:document.getElementById('pv-notas').value||null
+  });
+  if(error){alert('Error: '+error.message);return;}
+  showToast('Proveedor guardado ✅','ok');
+  renderProveedores();
+}
+async function eliminarProveedor(id, nombre){
+  if(!confirm(`¿Eliminar proveedor "${nombre}"?`)) return;
+  await db.from('proveedores').delete().eq('id',id);
+  showToast(`Proveedor eliminado`,'info');
+  renderProveedores();
 }
 
 // ──── ALERTAS DE STOCK EN NAV ────────────────────────────────────────────────
