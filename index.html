@@ -124,6 +124,11 @@ select.ss{font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:
 .margin-pill{display:inline-block;padding:1px 7px;border-radius:99px;font-size:11px;font-weight:600}
 .margin-ok{background:#dcfce7;color:#15803d}.margin-low{background:#fef9c3;color:#ca8a04}.margin-neg{background:#fee2e2;color:#dc2626}
 @media(max-width:800px){.dash-2col{grid-template-columns:1fr!important}}
+/* ── PESO / BALANZA ── */
+.peso-badge{position:absolute;top:8px;left:8px;background:#2563eb;color:#fff;border-radius:99px;font-size:10px;font-weight:700;padding:2px 6px}
+.prod-card.peso-card{border-color:#dbeafe}
+.prod-card.peso-card:hover{border-color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.15)}
+.warn-banner{background:#fef9c3;border:1px solid #fde68a;color:#92400e;padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:10px;display:none}
 /* ── PROVEEDORES ── */
 .prov-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;padding:16px 18px}
 .prov-form .full{grid-column:1/-1}
@@ -184,6 +189,12 @@ select.ss{font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:
       <div class="field"><label>Estado</label>
         <select id="pm-avail"><option value="true">Activo</option><option value="false">Inactivo</option></select>
       </div>
+      <div class="field full" style="background:#eff6ff;border-radius:6px;padding:10px 12px;border:1px solid #dbeafe">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:500;color:#1e40af">
+          <input type="checkbox" id="pm-weight" style="width:16px;height:16px;accent-color:#2563eb">
+          ⚖️ Se vende por peso (kg) — al agregarlo a la caja pedirá ingresar el peso
+        </label>
+      </div>
     </div>
     <div class="form-actions">
       <button class="btn bto" onclick="document.getElementById('prod-modal').classList.remove('open')">Cancelar</button>
@@ -216,6 +227,21 @@ select.ss{font-size:12px;padding:3px 6px;border:1px solid #d1d5db;border-radius:
     <button class="modal-close" onclick="document.getElementById('order-modal').classList.remove('open')">✕</button>
     <h3 id="order-modal-title">Detalle del pedido</h3>
     <div id="order-modal-body"></div>
+  </div>
+</div>
+
+<!-- Modal ingreso de peso (balanza) -->
+<div class="modal-bg" id="peso-modal" onclick="closeModal(event)">
+  <div class="modal" style="max-width:320px;text-align:center">
+    <button class="modal-close" onclick="document.getElementById('peso-modal').classList.remove('open')">✕</button>
+    <div style="font-size:32px;margin-bottom:8px">⚖️</div>
+    <h3 id="peso-modal-title" style="margin-bottom:4px"></h3>
+    <p id="peso-modal-precio" style="color:#6b7280;font-size:13px;margin-bottom:16px"></p>
+    <input type="number" id="peso-input" min="0.001" step="0.001" placeholder="0.000"
+      style="width:100%;font-size:28px;font-weight:700;text-align:center;padding:12px;border:2px solid #d1d5db;border-radius:8px;margin-bottom:8px"
+      oninput="actualizarPesoPreview()">
+    <p id="peso-preview" style="font-size:18px;font-weight:700;color:#16a34a;min-height:28px;margin-bottom:16px"></p>
+    <button class="btn btg" style="width:100%;padding:12px;font-size:15px" onclick="confirmarPeso()">Agregar al carrito</button>
   </div>
 </div>
 
@@ -363,6 +389,7 @@ async function toggleProduct(id,available){ await db.from('products').update({av
 function openNewProduct(){
   document.getElementById('pm-id').value='';['pm-name','pm-desc','pm-price','pm-cost'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('pm-stock').value='0'; document.getElementById('pm-avail').value='true';
+  document.getElementById('pm-weight').checked=false;
   document.getElementById('pm-margen').textContent='';
   document.getElementById('prod-modal-title').textContent='Nuevo producto';
   const sel=document.getElementById('pm-cat');
@@ -375,6 +402,7 @@ function openEditProduct(id){
     document.getElementById('pm-desc').value=p.description||''; document.getElementById('pm-price').value=p.price;
     document.getElementById('pm-cost').value=p.cost_price||''; document.getElementById('pm-stock').value=p.stock??0;
     document.getElementById('pm-avail').value=String(p.available);
+    document.getElementById('pm-weight').checked=!!p.sold_by_weight;
     document.getElementById('prod-modal-title').textContent='Editar producto';
     const sel=document.getElementById('pm-cat');
     sel.innerHTML='<option value="">Sin categoria</option>'+_cats.map(c=>`<option value="${c.id}"${c.id===p.category_id?' selected':''}>${c.name}</option>`).join('');
@@ -400,6 +428,7 @@ async function saveProduct(){
   const costVal=parseFloat(document.getElementById('pm-cost').value)||null;
   const payload={name,description:document.getElementById('pm-desc').value.trim()||null,price,
     cost_price:costVal,
+    sold_by_weight:document.getElementById('pm-weight').checked,
     stock:parseInt(document.getElementById('pm-stock').value)||0,
     category_id:document.getElementById('pm-cat').value||null,
     available:document.getElementById('pm-avail').value==='true'};
@@ -665,7 +694,7 @@ async function verRuta() {
 async function renderCaja(){
   const today=new Date().toISOString().slice(0,10);
   const [{data:prods},{data:cajaDia}]=await Promise.all([
-    db.from('products').select('id,name,price,stock,available,category_id').eq('available',true).order('name'),
+    db.from('products').select('*').eq('available',true).order('name'),
     db.from('orders').select('total').eq('delivery_type','caja').gte('created_at',today+'T00:00:00').lte('created_at',today+'T23:59:59')
   ]);
   _allProds=prods||[];
@@ -705,15 +734,59 @@ function renderProdGrid(prods){
   if(!prods?.length){grid.innerHTML='<div class="em" style="grid-column:1/-1">Sin productos</div>';return;}
   grid.innerHTML=prods.map(p=>{
     const s=p.stock??0;
+    const isPeso=!!p.sold_by_weight;
     const inCart=_carrito[p.id]?.qty||0;
-    return `<div class="prod-card${s===0?' no-stk':''}" onclick="${s>0?`addToCart('${p.id}')`:''}" title="${s===0?'Sin stock':'Agregar al carrito'}">
-      ${inCart>0?`<span class="pin-badge">${inCart}</span>`:''}
+    const inCartLabel=isPeso&&inCart>0?`${inCart.toFixed(3)}kg`:inCart>0?String(inCart):'';
+    const clickFn=s>0?(isPeso?`abrirPesoModal('${p.id}')`:`addToCart('${p.id}')`):'';
+    const priceLabel=isPeso?`$${Number(p.price).toLocaleString('es-AR')}/kg`:`$${Number(p.price).toLocaleString('es-AR')}`;
+    const stockLabel=s>0?(isPeso?`Stock: ~${s}kg`:`Stock: ${s}`):'❌ Sin stock';
+    return `<div class="prod-card${isPeso?' peso-card':''}${s===0?' no-stk':''}" onclick="${clickFn}" title="${s===0?'Sin stock':isPeso?'Ingresar peso':'Agregar al carrito'}">
+      ${isPeso?'<span class="peso-badge">⚖️ kg</span>':''}
+      ${inCartLabel?`<span class="pin-badge">${inCartLabel}</span>`:''}
       <div class="pn">${p.name}</div>
-      <div class="pp">$${Number(p.price).toLocaleString('es-AR')}</div>
-      <div class="ps">${s>0?`Stock: ${s}`:'❌ Sin stock'}</div>
+      <div class="pp">${priceLabel}</div>
+      <div class="ps">${stockLabel}</div>
     </div>`;
   }).join('');
 }
+
+let _pesoProductId=null;
+function abrirPesoModal(productId){
+  _pesoProductId=productId;
+  const p=_allProds.find(x=>x.id===productId);
+  if(!p)return;
+  document.getElementById('peso-modal-title').textContent=p.name;
+  document.getElementById('peso-modal-precio').textContent=`$${Number(p.price).toLocaleString('es-AR')} por kg`;
+  document.getElementById('peso-input').value='';
+  document.getElementById('peso-preview').textContent='';
+  document.getElementById('peso-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('peso-input').focus(),120);
+}
+function actualizarPesoPreview(){
+  const peso=parseFloat(document.getElementById('peso-input').value)||0;
+  const p=_allProds.find(x=>x.id===_pesoProductId);
+  const el=document.getElementById('peso-preview');
+  if(peso>0&&p) el.textContent=`= $${(peso*p.price).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:2})}`;
+  else el.textContent='';
+}
+function confirmarPeso(){
+  const peso=parseFloat(document.getElementById('peso-input').value)||0;
+  if(peso<=0){document.getElementById('peso-input').style.borderColor='#dc2626';return;}
+  document.getElementById('peso-input').style.borderColor='#d1d5db';
+  const p=_allProds.find(x=>x.id===_pesoProductId);
+  if(!p)return;
+  if(!_carrito[_pesoProductId]) _carrito[_pesoProductId]={product:p,qty:0,isPeso:true};
+  _carrito[_pesoProductId].qty=Math.round((_carrito[_pesoProductId].qty+peso)*1000)/1000;
+  _carrito[_pesoProductId].isPeso=true;
+  document.getElementById('peso-modal').classList.remove('open');
+  renderCart();
+  const q=document.getElementById('caja-search')?.value||'';
+  renderProdGrid(q?_allProds.filter(p=>p.name.toLowerCase().includes(q.toLowerCase())):_allProds);
+}
+// Enter en el input de peso confirma
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&document.getElementById('peso-modal')?.classList.contains('open'))confirmarPeso();
+});
 
 function addToCart(productId){
   const p=_allProds.find(p=>p.id===productId);
@@ -732,10 +805,11 @@ function removeFromCart(productId){
 }
 
 function updateCartQty(productId, val){
-  const qty=parseInt(val)||0;
+  const isPeso=_carrito[productId]?.isPeso;
+  const qty=isPeso?(parseFloat(val)||0):(parseInt(val)||0);
   const p=_allProds.find(p=>p.id===productId);
   if(qty<=0){ delete _carrito[productId]; }
-  else if(p && qty<=p.stock){ _carrito[productId].qty=qty; }
+  else if(p){ _carrito[productId].qty=isPeso?Math.round(qty*1000)/1000:Math.min(qty,p.stock); }
   renderCart();
 }
 
@@ -752,13 +826,18 @@ function renderCart(){
     return;
   }
   const total=items.reduce((s,i)=>s+i.product.price*i.qty,0);
-  cartEl.innerHTML=items.map(i=>`
+  cartEl.innerHTML=items.map(i=>{
+    const isPeso=i.isPeso;
+    const qtyLabel=isPeso?`${i.qty.toFixed(3)} kg`:`${i.qty} u`;
+    const unitLabel=isPeso?`$${i.product.price.toLocaleString('es-AR')}/kg`:`$${i.product.price.toLocaleString('es-AR')} c/u`;
+    return `
     <div class="cart-item">
-      <div class="cin">${i.product.name}<br><small style="color:#9ca3af">$${i.product.price.toLocaleString('es-AR')} c/u</small></div>
-      <input class="ciq" type="number" value="${i.qty}" min="1" max="${i.product.stock}" onchange="updateCartQty('${i.product.id}',this.value)">
-      <div class="cip">$${(i.product.price*i.qty).toLocaleString('es-AR')}</div>
+      <div class="cin">${i.product.name}${isPeso?' <span class="b bb" style="font-size:10px">⚖️kg</span>':''}<br><small style="color:#9ca3af">${unitLabel}</small></div>
+      <input class="ciq" type="number" value="${isPeso?i.qty.toFixed(3):i.qty}" min="${isPeso?'0.001':'1'}" step="${isPeso?'0.001':'1'}" ${isPeso?'':'max="'+i.product.stock+'"'} onchange="updateCartQty('${i.product.id}',this.value)" style="${isPeso?'width:70px':''}">
+      <div class="cip">$${(i.product.price*i.qty).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:2})}</div>
       <button class="cix" onclick="removeFromCart('${i.product.id}')">✕</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   if(totalEl) totalEl.textContent='$'+total.toLocaleString('es-AR');
 }
 
@@ -1009,6 +1088,8 @@ async function renderStock(filtro='todos'){
           </div>
           <div class="full"><label>Notas</label><input id="se-notas" placeholder="Ej: Lote fresco, llegó en buen estado"></div>
           <div class="full">
+            <div id="se-warn" class="warn-banner"></div>
+            <div id="se-err" class="err" style="display:none"></div>
             <button class="btn btg" style="padding:10px 28px" onclick="registrarEntrada()">✅ Registrar entrada</button>
             <span id="se-status" style="margin-left:12px;font-size:12px;color:#6b7280"></span>
           </div>
@@ -1060,8 +1141,18 @@ async function registrarEntrada(){
   const notas=document.getElementById('se-notas').value.trim()||null;
   const status=document.getElementById('se-status');
 
-  if(!prodId){alert('Elegí un producto');return;}
-  if(qty<=0){alert('La cantidad debe ser mayor a 0');return;}
+  const errEl=document.getElementById('se-err');
+  const warnEl=document.getElementById('se-warn');
+  // Solo 2 campos son verdaderamente obligatorios
+  if(!prodId){errEl.textContent='⚠️ Elegí un producto de la lista';errEl.style.display='block';return;}
+  if(!qty||qty<=0){errEl.textContent='⚠️ La cantidad tiene que ser mayor a 0';errEl.style.display='block';return;}
+  errEl.style.display='none';
+  // Avisos suaves (no bloquean)
+  const avisos=[];
+  if(!prov) avisos.push('sin proveedor');
+  if(!costoUnit) avisos.push('sin costo → no se generará gasto');
+  if(avisos.length) { warnEl.textContent=`ℹ️ Vas a registrar ${avisos.join(' y ')}. Podés completarlo después.`; warnEl.style.display='block'; }
+  else warnEl.style.display='none';
 
   const prodSel=document.getElementById('se-prod');
   const prodName=prodSel.options[prodSel.selectedIndex]?.dataset.name||'';
