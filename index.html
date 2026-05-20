@@ -852,10 +852,8 @@ async function registrarVenta(){
       if((p?.stock||0)<item.qty){ alert(`Stock insuficiente para ${item.product.name} (disponible: ${p?.stock||0})`); btn.disabled=false; btn.textContent='✅ Registrar Venta'; return; }
     }
     const subtotal=items.reduce((s,i)=>s+i.product.price*i.qty,0);
-    const {data:maxRow}=await db.from('orders').select('order_number').order('order_number',{ascending:false}).limit(1).maybeSingle();
-    const orderNumber=(maxRow?.order_number||0)+1;
     const {data:order,error}=await db.from('orders').insert({
-      order_number:orderNumber, nombre:'Mostrador', apellido:'', telefono:'',
+      nombre:'Mostrador', apellido:'', telefono:'',
       subtotal, shipping_cost:0, total:subtotal,
       status:'entregada', payment_status:'pagado',
       delivery_type:'caja', notes:'Venta en caja'
