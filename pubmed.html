@@ -136,10 +136,15 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#2563eb;box-sh
 <div class="tab on" id="tab-rapida">
   <div class="card">
     <h2>⚡ Búsqueda Rápida</h2>
-    <div class="search-big">
-      <input type="text" id="q-rapida" placeholder='Ej: metformin type 2 diabetes glycemic control' onkeydown="if(e.key==='Enter')searchRapida()" oninput="updateRapidaPreview()">
-      <button class="btn btn-primary" onclick="searchRapida()">🔍 Buscar</button>
+    <div style="background:#fef9c3;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;font-size:12px;color:#92400e;margin-bottom:12px">
+      ⚠️ <strong>PubMed indexa en inglés.</strong> Si buscás en español usá el botón <strong>🌐 Traducir y buscar</strong> para convertir el término automáticamente.
     </div>
+    <div class="search-big">
+      <input type="text" id="q-rapida" placeholder='Ej: shoulder impingement syndrome — o en español para traducir' onkeydown="if(event.key==='Enter')searchRapida()" oninput="updateRapidaPreview()">
+      <button class="btn btn-primary" onclick="searchRapida()">🔍 Buscar</button>
+      <button class="btn btn-secondary" onclick="traducirYBuscar()" title="Detecta términos en español y los convierte al inglés">🌐 Traducir y buscar</button>
+    </div>
+    <div id="sugerencia-traduccion" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;font-size:12px;color:#1e40af;margin-bottom:8px"></div>
     <button class="filters-toggle" onclick="toggleFilters('f-rapida')">
       <span>⚙️ Filtros avanzados</span><span id="f-rapida-icon">▼</span>
     </button>
@@ -895,6 +900,56 @@ const TEMPLATES = [
   { cat: 'Reumatología', icon: '🦴', name: 'Osteoporosis — bisfosfonatos y denosumab',
     desc: 'Reducción de fracturas con tratamiento antiosteoporótico',
     query: '"osteoporosis"[MeSH] AND ("diphosphonates"[MeSH] OR denosumab[TIAB]) AND "fractures, bone"[MeSH] AND ("Meta-Analysis"[PT] OR "Randomized Controlled Trial"[PT])' },
+
+  // TRAUMATOLOGÍA / ORTOPEDIA
+  { cat: 'Traumatología / Ortopedia', icon: '🩻', name: 'Impingement de hombro — tratamiento',
+    desc: 'Fisioterapia vs cirugía artroscópica vs corticoides en síndrome de impingement subacromial',
+    query: '"shoulder impingement syndrome"[MeSH] AND ("physical therapy modalities"[MeSH] OR "arthroscopy"[MeSH] OR "glucocorticoids"[MeSH] OR decompression[TIAB]) AND ("pain"[MeSH] OR "treatment outcome"[MeSH] OR "range of motion"[TIAB]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])',
+    picoP: 'shoulder impingement syndrome patients', picoI: 'arthroscopic decompression OR physical therapy', picoO: 'pain relief, functional outcome' },
+  { cat: 'Traumatología / Ortopedia', icon: '🩻', name: 'Rotura de manguito rotador — reparación quirúrgica',
+    desc: 'Cirugía artroscópica vs tratamiento conservador en rotura del manguito',
+    query: '"rotator cuff injuries"[MeSH] AND ("arthroscopy"[MeSH] OR "shoulder joint/surgery"[MeSH] OR "physical therapy modalities"[MeSH]) AND ("treatment outcome"[MeSH] OR "pain"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Systematic Review"[PT])' },
+  { cat: 'Traumatología / Ortopedia', icon: '🩻', name: 'Artrosis de rodilla — tratamiento',
+    desc: 'Infiltraciones, fisioterapia, prótesis y analgesia en gonartrosis',
+    query: '"osteoarthritis, knee"[MeSH] AND ("hyaluronic acid"[MeSH] OR "glucocorticoids"[MeSH] OR "arthroplasty, replacement, knee"[MeSH] OR "physical therapy modalities"[MeSH]) AND ("pain"[MeSH] OR "knee/physiopathology"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+  { cat: 'Traumatología / Ortopedia', icon: '🩻', name: 'Lesión de LCA — reconstrucción quirúrgica',
+    desc: 'Injertos y técnicas en reconstrucción del ligamento cruzado anterior',
+    query: '"anterior cruciate ligament injuries"[MeSH] AND ("anterior cruciate ligament reconstruction"[MeSH] OR graft[TIAB]) AND ("treatment outcome"[MeSH] OR "return to sport"[TIAB]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+  { cat: 'Traumatología / Ortopedia', icon: '🩻', name: 'Lumbalgia — tratamiento conservador',
+    desc: 'Analgesia, fisioterapia y ejercicio en dolor lumbar inespecífico',
+    query: '"low back pain"[MeSH] AND ("physical therapy modalities"[MeSH] OR "exercise therapy"[MeSH] OR "analgesics"[MeSH] OR "manipulation, spinal"[MeSH]) AND ("pain"[MeSH] OR "disability evaluation"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+  { cat: 'Traumatología / Ortopedia', icon: '🩻', name: 'Fractura de cadera — manejo quirúrgico',
+    desc: 'Artroplastia vs osteosíntesis en fractura de cadera en ancianos',
+    query: '"hip fractures"[MeSH] AND ("arthroplasty, replacement, hip"[MeSH] OR "fracture fixation, internal"[MeSH]) AND ("mortality"[MeSH] OR "recovery of function"[MeSH] OR "reoperation"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+  { cat: 'Traumatología / Ortopedia', icon: '🩻', name: 'Tendinopatía aquílea — tratamiento',
+    desc: 'Ejercicio excéntrico, PRP e infiltraciones en tendinopatía del tendón de Aquiles',
+    query: '"tendinopathy"[MeSH] AND ("achilles tendon"[MeSH]) AND ("exercise therapy"[MeSH] OR "platelet-rich plasma"[MeSH] OR "glucocorticoids"[MeSH]) AND ("pain"[MeSH] OR "treatment outcome"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+  { cat: 'Traumatología / Ortopedia', icon: '🩻', name: 'Inestabilidad de hombro — estabilización',
+    desc: 'Cirugía de Latarjet vs Bankart artroscópico en inestabilidad glenohumeral',
+    query: '"joint instability"[MeSH] AND "shoulder joint"[MeSH] AND ("arthroscopy"[MeSH] OR Latarjet[TIAB] OR Bankart[TIAB]) AND ("recurrence"[MeSH] OR "treatment outcome"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Systematic Review"[PT])' },
+  { cat: 'Traumatología / Ortopedia', icon: '🩻', name: 'Epicondilalgia lateral — codo de tenista',
+    desc: 'PRP, corticoides y fisioterapia en epicondilalgia lateral',
+    query: '"tennis elbow"[MeSH] AND ("platelet-rich plasma"[MeSH] OR "glucocorticoids"[MeSH] OR "physical therapy modalities"[MeSH] OR "extracorporeal shockwave therapy"[MeSH]) AND ("pain"[MeSH] OR "treatment outcome"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+  { cat: 'Traumatología / Ortopedia', icon: '🩻', name: 'Artrosis de cadera — prótesis de cadera',
+    desc: 'Resultados y complicaciones de artroplastia total de cadera',
+    query: '"osteoarthritis, hip"[MeSH] AND "arthroplasty, replacement, hip"[MeSH] AND ("treatment outcome"[MeSH] OR "prosthesis failure"[MeSH] OR "pain"[MeSH] OR "quality of life"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Cohort Studies"[MeSH])' },
+  { cat: 'Traumatología / Ortopedia', icon: '🩻', name: 'PRP en lesiones musculoesqueléticas',
+    desc: 'Plasma rico en plaquetas en tendones, articulaciones y músculo',
+    query: '"platelet-rich plasma"[MeSH] AND ("musculoskeletal diseases"[MeSH] OR "tendinopathy"[MeSH] OR "osteoarthritis"[MeSH]) AND ("pain"[MeSH] OR "treatment outcome"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT]) AND 2015:2026[PDAT]' },
+
+  // KINESIOLOGÍA / REHABILITACIÓN
+  { cat: 'Kinesiología / Rehabilitación', icon: '🏃', name: 'Ejercicio terapéutico en dolor crónico',
+    desc: 'Efectividad del ejercicio vs otras intervenciones en dolor músculo-esquelético crónico',
+    query: '"exercise therapy"[MeSH] AND ("chronic pain"[MeSH] OR "musculoskeletal pain"[MeSH]) AND ("pain"[MeSH] OR "disability evaluation"[MeSH] OR "quality of life"[MeSH]) AND ("Meta-Analysis"[PT] OR "Systematic Review"[PT])' },
+  { cat: 'Kinesiología / Rehabilitación', icon: '🏃', name: 'Rehabilitación post-ACV',
+    desc: 'Fisioterapia, terapia ocupacional y neurorehabilitación tras accidente cerebrovascular',
+    query: '"stroke rehabilitation"[MeSH] AND ("physical therapy modalities"[MeSH] OR "occupational therapy"[MeSH] OR "robotics"[MeSH]) AND ("recovery of function"[MeSH] OR "motor activity"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+  { cat: 'Kinesiología / Rehabilitación', icon: '🏃', name: 'Electroterapia — TENS y electroestimulación',
+    desc: 'TENS, EMS y ultrasonido en tratamiento del dolor musculoesquelético',
+    query: '("transcutaneous electric nerve stimulation"[MeSH] OR "electric stimulation therapy"[MeSH] OR "ultrasonic therapy"[MeSH]) AND ("pain"[MeSH] OR "musculoskeletal diseases"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+  { cat: 'Kinesiología / Rehabilitación', icon: '🏃', name: 'Pilates y core en lumbalgia',
+    desc: 'Ejercicios de estabilización central vs fisioterapia convencional en lumbalgia crónica',
+    query: '(pilates[TIAB] OR "core stability"[TIAB] OR "stabilization exercises"[TIAB]) AND "low back pain"[MeSH] AND ("pain"[MeSH] OR "disability evaluation"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
 ];
 
 let _currentTmplQuery = '';
@@ -966,7 +1021,15 @@ async function doSearch(query, resultsId, retmax = 20, retstart = 0) {
     const { count, idlist } = data.esearchresult;
 
     if (!idlist || idlist.length === 0) {
-      el.innerHTML = `<div class="empty">No se encontraron resultados para esta búsqueda.<br><a href="https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(query)}" target="_blank" style="color:#2563eb">Intentar en PubMed →</a></div>`;
+      const esEspanol = /[áéíóúüñ]|síndrome|dolor|fractura|lesión|rodilla|hombro|cadera|columna/i.test(query);
+      el.innerHTML = `<div class="empty">
+        <div style="font-size:28px;margin-bottom:10px">🔍</div>
+        <strong>Sin resultados para esta búsqueda.</strong>
+        ${esEspanol ? `<br><br>⚠️ <strong>PubMed indexa en inglés.</strong> Usá el botón <strong>🌐 Traducir y buscar</strong> para convertir el término.` : ''}
+        <br><br>
+        <a class="btn btn-primary" href="https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(query)}" target="_blank" style="text-decoration:none;display:inline-flex">🌐 Intentar directamente en PubMed</a>
+        ${esEspanol ? `<br><br><a href="https://meshb.nlm.nih.gov/search" target="_blank" style="color:#2563eb;font-size:12px">Buscar el término en inglés en MeSH Browser →</a>` : ''}
+      </div>`;
       return;
     }
 
@@ -1141,6 +1204,151 @@ function toast(msg) {
   el.classList.add('show');
   clearTimeout(el._t);
   el._t = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+/* ─── TRADUCTOR ESPAÑOL → INGLÉS ─── */
+const ES_EN = {
+  // Traumatología / Ortopedia
+  'síndrome de impingement': 'shoulder impingement syndrome',
+  'síndrome subacromial': 'subacromial impingement syndrome',
+  'impingement de hombro': 'shoulder impingement syndrome',
+  'impingement hombro': 'shoulder impingement syndrome',
+  'manguito rotador': 'rotator cuff',
+  'rotura manguito': 'rotator cuff tears',
+  'rotura del manguito': 'rotator cuff injuries',
+  'inestabilidad de hombro': 'shoulder instability',
+  'luxación hombro': 'shoulder dislocation',
+  'fractura de cadera': 'hip fractures',
+  'fractura cadera': 'hip fractures',
+  'artrosis de rodilla': 'osteoarthritis knee',
+  'gonartrosis': 'osteoarthritis knee',
+  'coxartrosis': 'osteoarthritis hip',
+  'artrosis de cadera': 'osteoarthritis hip',
+  'artrosis': 'osteoarthritis',
+  'prótesis de cadera': 'hip replacement arthroplasty',
+  'prótesis de rodilla': 'knee replacement arthroplasty',
+  'ligamento cruzado anterior': 'anterior cruciate ligament',
+  'lca': 'anterior cruciate ligament',
+  'menisco': 'meniscus',
+  'lesión de menisco': 'meniscus injury',
+  'lumbalgia': 'low back pain',
+  'dolor lumbar': 'low back pain',
+  'hernia de disco': 'intervertebral disc displacement',
+  'hernia discal': 'intervertebral disc displacement',
+  'epicondilalgia': 'lateral epicondylitis',
+  'codo de tenista': 'tennis elbow',
+  'tendinopatía aquílea': 'achilles tendinopathy',
+  'tendón de aquiles': 'achilles tendon',
+  'fascitis plantar': 'plantar fasciitis',
+  'esguince de tobillo': 'ankle sprains',
+  'esguince': 'sprain',
+  'fractura': 'fracture',
+  'hombro': 'shoulder',
+  'rodilla': 'knee',
+  'cadera': 'hip',
+  'tobillo': 'ankle',
+  'columna': 'spine',
+  'cervicalgia': 'neck pain',
+  'dolor cervical': 'neck pain',
+  // Cardiología
+  'infarto': 'myocardial infarction',
+  'infarto agudo de miocardio': 'myocardial infarction',
+  'fibrilación auricular': 'atrial fibrillation',
+  'insuficiencia cardíaca': 'heart failure',
+  'hipertensión arterial': 'hypertension',
+  'hipertensión': 'hypertension',
+  'angina': 'angina pectoris',
+  'arritmia': 'arrhythmia',
+  'taquicardia': 'tachycardia',
+  'bradicardia': 'bradycardia',
+  // Endocrinología
+  'diabetes tipo 2': 'type 2 diabetes mellitus',
+  'diabetes mellitus tipo 2': 'diabetes mellitus type 2',
+  'diabetes': 'diabetes mellitus',
+  'hipotiroidismo': 'hypothyroidism',
+  'hipertiroidismo': 'hyperthyroidism',
+  'obesidad': 'obesity',
+  'síndrome metabólico': 'metabolic syndrome',
+  // Neurología
+  'accidente cerebrovascular': 'stroke',
+  'acv': 'stroke',
+  'ictus': 'stroke',
+  'epilepsia': 'epilepsy',
+  'migraña': 'migraine disorders',
+  'parkinson': 'parkinson disease',
+  'alzheimer': 'alzheimer disease',
+  'esclerosis múltiple': 'multiple sclerosis',
+  'cefalea': 'headache',
+  // Gastroenterología
+  'reflujo gastroesofágico': 'gastroesophageal reflux',
+  'erge': 'gastroesophageal reflux',
+  'úlcera gástrica': 'stomach ulcer',
+  'enfermedad de crohn': 'crohn disease',
+  'colitis ulcerosa': 'colitis ulcerative',
+  // Infectología
+  'neumonía': 'pneumonia',
+  'sepsis': 'sepsis',
+  'vih': 'HIV infections',
+  // Neumología
+  'epoc': 'pulmonary disease chronic obstructive',
+  'asma': 'asthma',
+  // Otros
+  'cáncer': 'neoplasms',
+  'tumor': 'neoplasms',
+  'ansiedad': 'anxiety disorders',
+  'depresión': 'depressive disorder',
+  'dolor crónico': 'chronic pain',
+  'dolor agudo': 'acute pain',
+  'inflamación': 'inflammation',
+  'embarazo': 'pregnancy',
+  'hipertensión': 'hypertension',
+  // Kinesiología
+  'fisioterapia': 'physical therapy modalities',
+  'rehabilitación': 'rehabilitation',
+  'ejercicio': 'exercise therapy',
+  'electroestimulación': 'electric stimulation therapy',
+  'tens': 'transcutaneous electric nerve stimulation',
+  'ultrasonido terapéutico': 'ultrasonic therapy',
+  'prp': 'platelet-rich plasma',
+  'plasma rico en plaquetas': 'platelet-rich plasma',
+  'pilates': 'pilates',
+  'yoga': 'yoga',
+};
+
+function traducirYBuscar() {
+  const input = document.getElementById('q-rapida');
+  let term = input.value.trim().toLowerCase();
+  if (!term) { toast('Ingresá un término para traducir'); return; }
+
+  let traducido = term;
+  let encontrado = null;
+  // Buscar la coincidencia más larga
+  const keys = Object.keys(ES_EN).sort((a, b) => b.length - a.length);
+  for (const key of keys) {
+    if (traducido.includes(key)) {
+      const en = ES_EN[key];
+      traducido = traducido.replace(key, en);
+      encontrado = { es: key, en };
+      break;
+    }
+  }
+
+  if (encontrado) {
+    input.value = traducido;
+    const sug = document.getElementById('sugerencia-traduccion');
+    sug.style.display = 'block';
+    sug.innerHTML = `✅ Traducido: <strong>"${encontrado.es}"</strong> → <strong>"${encontrado.en}"</strong> — Ahora podés buscar.`;
+    updateRapidaPreview();
+    toast('✓ Término traducido al inglés');
+  } else {
+    const sug = document.getElementById('sugerencia-traduccion');
+    sug.style.display = 'block';
+    sug.style.background = '#fff7ed';
+    sug.style.borderColor = '#fed7aa';
+    sug.style.color = '#92400e';
+    sug.innerHTML = `⚠️ No se encontró traducción automática para <strong>"${term}"</strong>. Intentá buscar el término directamente en inglés. <a href="https://meshb.nlm.nih.gov/search" target="_blank" style="color:#2563eb">Buscar en MeSH Browser →</a>`;
+    toast('Término no encontrado en el diccionario');
+  }
 }
 
 /* ─── INIT ─── */
