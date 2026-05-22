@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PubMed Prompts</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f0f9ff;color:#0f172a;min-height:100vh}
+header{background:#1e40af;color:#fff;padding:16px 20px}
+header h1{font-size:18px;font-weight:800;margin-bottom:2px}
+header p{font-size:12px;opacity:.8}
+.tabs{background:#fff;border-bottom:2px solid #e2e8f0;display:flex;overflow-x:auto}
+.tabs button{padding:12px 18px;border:none;background:none;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;margin-bottom:-2px}
+.tabs button.active{color:#1e40af;border-color:#1e40af}
+.page{display:none;padding:16px;max-width:900px;margin:0 auto}
+.page.active{display:block}
+.search-wrap{background:#fff;border-radius:10px;border:1px solid #e2e8f0;padding:14px;margin-bottom:16px}
+.search-wrap input{width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px;color:#0f172a;background:#fff}
+.search-wrap input:focus{outline:none;border-color:#1e40af;box-shadow:0 0 0 3px #dbeafe}
+.nota{background:#fef9c3;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;font-size:12px;color:#78350f;margin-bottom:14px;line-height:1.5}
+.specialty{margin-bottom:20px}
+.specialty-title{font-size:13px;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.5px;padding:6px 0;border-bottom:2px solid #e2e8f0;margin-bottom:10px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:10px;transition:box-shadow .15s}
+.card:hover{box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.card h3{font-size:14px;font-weight:700;color:#1e293b;margin-bottom:4px}
+.card p{font-size:12px;color:#64748b;margin-bottom:10px;line-height:1.4}
+.card-query{background:#f1f5f9;border-radius:6px;padding:8px 10px;font-family:monospace;font-size:11px;color:#334155;margin-bottom:10px;line-height:1.5;word-break:break-word}
+.card-btns{display:flex;gap:8px;flex-wrap:wrap}
+.btn{padding:8px 14px;border-radius:7px;border:none;cursor:pointer;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:5px;text-decoration:none}
+.btn-blue{background:#1e40af;color:#fff}
+.btn-blue:hover{background:#1d4ed8}
+.btn-gray{background:#f1f5f9;color:#374151;border:1px solid #e2e8f0}
+.btn-gray:hover{background:#e2e8f0}
+.hidden{display:none}
+/* Constructor */
+.form-section{background:#fff;border-radius:10px;border:1px solid #e2e8f0;padding:18px;margin-bottom:14px}
+.form-section h2{font-size:15px;font-weight:700;margin-bottom:14px;color:#1e293b}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+.field input,.field select{width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;color:#0f172a;background:#fff}
+.field input:focus,.field select:focus{outline:none;border-color:#1e40af}
+.result-box{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:12px;font-family:monospace;font-size:12px;color:#1e293b;margin:14px 0;min-height:48px;line-height:1.6;word-break:break-word}
+/* Guía */
+.ref-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:20px}
+.ref-table th{background:#1e40af;color:#fff;padding:8px 12px;text-align:left;font-size:11px;font-weight:700}
+.ref-table td{padding:8px 12px;border-bottom:1px solid #f1f5f9;vertical-align:top;line-height:1.5}
+.ref-table tr:hover td{background:#f8fafc}
+code{background:#e2e8f0;padding:1px 6px;border-radius:4px;font-family:monospace;font-size:11px;color:#1e293b}
+.section-h{font-size:13px;font-weight:800;color:#1e40af;text-transform:uppercase;letter-spacing:.5px;margin:18px 0 8px;padding-bottom:4px;border-bottom:2px solid #dbeafe}
+.copy-example{background:#f1f5f9;border-radius:6px;padding:10px 12px;font-family:monospace;font-size:11px;color:#334155;margin:6px 0 14px;word-break:break-word;cursor:pointer;border:1px solid #e2e8f0}
+.copy-example:hover{background:#e2e8f0}
+/* Toast */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:9px 20px;border-radius:8px;font-size:13px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:999;white-space:nowrap}
+#toast.show{opacity:1}
+/* Empty */
+.empty{text-align:center;padding:32px 16px;color:#94a3b8;font-size:14px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🔬 PubMed Prompts</h1>
+  <p>Elegí el tema → se arma la consulta → abrís PubMed con un click</p>
+</header>
+
+<div class="tabs">
+  <button class="active" onclick="tab('catalogo',this)">📋 Catálogo</button>
+  <button onclick="tab('constructor',this)">🔧 Armar consulta</button>
+  <button onclick="tab('guia',this)">📖 Guía rápida</button>
+</div>
+
+<!-- ═══════════ CATÁLOGO ═══════════ -->
+<div class="page active" id="page-catalogo">
+  <div class="search-wrap">
+    <input type="text" id="buscador" placeholder="🔍  Buscá en español o inglés: impingement, lumbalgia, diabetes, fractura..." oninput="filtrar(this.value)">
+  </div>
+  <div class="nota">
+    💡 <strong>PubMed es en inglés.</strong> Las consultas ya están armadas en inglés. Hacé click en <strong>Abrir en PubMed</strong> y buscás directo. También podés copiar la consulta y pegarla vos.
+  </div>
+  <div id="catalogo-lista"></div>
+</div>
+
+<!-- ═══════════ CONSTRUCTOR ═══════════ -->
+<div class="page" id="page-constructor">
+  <div class="form-section">
+    <h2>🔧 Armá tu consulta personalizada</h2>
+    <div class="nota">Completá los campos y se genera la consulta PubMed lista para usar. PubMed funciona en inglés — usá los términos en inglés.</div>
+    <div class="field">
+      <label>Tema / Condición (en inglés)</label>
+      <input type="text" id="c-tema" placeholder='Ej: shoulder impingement, low back pain, diabetes' oninput="buildQuery()">
+    </div>
+    <div class="field">
+      <label>Intervención / Tratamiento (opcional)</label>
+      <input type="text" id="c-inter" placeholder='Ej: physical therapy, surgery, metformin' oninput="buildQuery()">
+    </div>
+    <div class="field">
+      <label>Resultado buscado (opcional)</label>
+      <input type="text" id="c-outcome" placeholder='Ej: pain relief, mortality, quality of life' oninput="buildQuery()">
+    </div>
+    <div class="field">
+      <label>Tipo de estudio</label>
+      <select id="c-tipo" onchange="buildQuery()">
+        <option value="">Sin restricción</option>
+        <option value='"Randomized Controlled Trial"[PT]'>Ensayo Clínico Aleatorizado (ECA)</option>
+        <option value='"Meta-Analysis"[PT]'>Meta-Análisis</option>
+        <option value='"Systematic Review"[PT]'>Revisión Sistemática</option>
+        <option value='"Review"[PT]'>Revisión</option>
+        <option value='"Clinical Trial"[PT]'>Ensayo Clínico</option>
+        <option value='"Observational Study"[PT]'>Estudio Observacional</option>
+        <option value='"Case Reports"[PT]'>Caso Clínico</option>
+        <option value='"Practice Guideline"[PT]'>Guía de Práctica Clínica</option>
+        <option value='"Cohort Studies"[MeSH]'>Estudio de Cohorte</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Años (ej: 2018:2026)</label>
+      <input type="text" id="c-años" placeholder="2018:2026" oninput="buildQuery()">
+    </div>
+    <div class="field">
+      <label>Idioma del artículo</label>
+      <select id="c-idioma" onchange="buildQuery()">
+        <option value="">Todos</option>
+        <option value="english[LA]">Inglés</option>
+        <option value="spanish[LA]">Español</option>
+        <option value="portuguese[LA]">Portugués</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Especie</label>
+      <select id="c-especie" onchange="buildQuery()">
+        <option value="">Todas</option>
+        <option value='"humans"[MeSH]'>Solo Humanos</option>
+      </select>
+    </div>
+    <div class="result-box" id="c-result">La consulta aparece acá cuando completás los campos...</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-blue" onclick="abrirPubMedConstructor()">🌐 Abrir en PubMed</button>
+      <button class="btn btn-gray" onclick="copiarConstructor()">📋 Copiar consulta</button>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h2>🌐 Traducción rápida español → inglés</h2>
+    <div class="field">
+      <label>Escribí el término en español</label>
+      <input type="text" id="t-es" placeholder='Ej: impingement de hombro, lumbalgia, fractura de cadera' oninput="traducir(this.value)">
+    </div>
+    <div class="result-box" id="t-result" style="font-size:13px">Escribí un término para ver la traducción...</div>
+    <button class="btn btn-gray" onclick="usarTraduccion()">↑ Usar en el constructor</button>
+  </div>
+</div>
+
+<!-- ═══════════ GUÍA RÁPIDA ═══════════ -->
+<div class="page" id="page-guia">
+  <div style="background:#fff;border-radius:10px;border:1px solid #e2e8f0;padding:18px">
+
+    <div class="section-h">Operadores booleanos</div>
+    <table class="ref-table">
+      <tr><th>Operador</th><th>Qué hace</th><th>Ejemplo</th></tr>
+      <tr><td><code>AND</code></td><td>Ambos términos presentes (restringe)</td><td><code>diabetes AND metformin</code></td></tr>
+      <tr><td><code>OR</code></td><td>Cualquiera de los términos (amplía)</td><td><code>heart attack OR myocardial infarction</code></td></tr>
+      <tr><td><code>NOT</code></td><td>Excluye el término</td><td><code>cancer NOT skin</code></td></tr>
+      <tr><td><code>( )</code></td><td>Agrupa términos</td><td><code>(aspirin OR ibuprofen) AND pain</code></td></tr>
+      <tr><td><code>" "</code></td><td>Frase exacta</td><td><code>"myocardial infarction"</code></td></tr>
+      <tr><td><code>*</code></td><td>Truncación / variantes</td><td><code>diabete*</code> → diabetes, diabetic…</td></tr>
+    </table>
+
+    <div class="section-h">Campos de búsqueda (etiquetas)</div>
+    <table class="ref-table">
+      <tr><th>Etiqueta</th><th>Campo</th><th>Ejemplo</th></tr>
+      <tr><td><code>[TI]</code></td><td>Título</td><td><code>impingement[TI]</code></td></tr>
+      <tr><td><code>[AB]</code></td><td>Resumen</td><td><code>randomized[AB]</code></td></tr>
+      <tr><td><code>[TIAB]</code></td><td>Título + Resumen</td><td><code>shoulder[TIAB]</code></td></tr>
+      <tr><td><code>[MeSH]</code> o <code>[MH]</code></td><td>Término MeSH oficial</td><td><code>"low back pain"[MeSH]</code></td></tr>
+      <tr><td><code>[AU]</code></td><td>Autor</td><td><code>Smith J[AU]</code></td></tr>
+      <tr><td><code>[TA]</code></td><td>Nombre de revista</td><td><code>Lancet[TA]</code></td></tr>
+      <tr><td><code>[PT]</code></td><td>Tipo de publicación</td><td><code>"Meta-Analysis"[PT]</code></td></tr>
+      <tr><td><code>[LA]</code></td><td>Idioma</td><td><code>spanish[LA]</code></td></tr>
+      <tr><td><code>[PDAT]</code></td><td>Fecha de publicación</td><td><code>2020:2024[PDAT]</code></td></tr>
+    </table>
+
+    <div class="section-h">Tipos de publicación más usados</div>
+    <table class="ref-table">
+      <tr><th>Filtro</th><th>Descripción</th></tr>
+      <tr><td><code>"Randomized Controlled Trial"[PT]</code></td><td>ECA — mayor evidencia para tratamientos</td></tr>
+      <tr><td><code>"Meta-Analysis"[PT]</code></td><td>Meta-análisis — síntesis cuantitativa</td></tr>
+      <tr><td><code>"Systematic Review"[PT]</code></td><td>Revisión sistemática</td></tr>
+      <tr><td><code>"Clinical Trial"[PT]</code></td><td>Todos los ensayos clínicos</td></tr>
+      <tr><td><code>"Review"[PT]</code></td><td>Revisión narrativa</td></tr>
+      <tr><td><code>"Practice Guideline"[PT]</code></td><td>Guía de práctica clínica</td></tr>
+      <tr><td><code>"Case Reports"[PT]</code></td><td>Casos clínicos</td></tr>
+      <tr><td><code>"Observational Study"[PT]</code></td><td>Estudios observacionales</td></tr>
+    </table>
+
+    <div class="section-h">Ejemplos de consultas completas (click para copiar)</div>
+
+    <p style="font-size:11px;color:#64748b;margin-bottom:4px">Impingement de hombro — ECA y meta-análisis</p>
+    <div class="copy-example" onclick="copiarTexto(this.textContent)">"shoulder impingement syndrome"[MeSH] AND ("physical therapy modalities"[MeSH] OR "arthroscopy"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])</div>
+
+    <p style="font-size:11px;color:#64748b;margin-bottom:4px">Diabetes tipo 2 — control glucémico</p>
+    <div class="copy-example" onclick="copiarTexto(this.textContent)">"diabetes mellitus, type 2"[MeSH] AND "glycated hemoglobin"[MeSH] AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT]) AND 2015:2026[PDAT]</div>
+
+    <p style="font-size:11px;color:#64748b;margin-bottom:4px">Lumbalgia — tratamiento conservador</p>
+    <div class="copy-example" onclick="copiarTexto(this.textContent)">"low back pain"[MeSH] AND ("exercise therapy"[MeSH] OR "physical therapy modalities"[MeSH] OR "analgesics"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])</div>
+
+    <p style="font-size:11px;color:#64748b;margin-bottom:4px">Hipertensión — antihipertensivos</p>
+    <div class="copy-example" onclick="copiarTexto(this.textContent)">"hypertension"[MeSH] AND "antihypertensive agents"[MeSH] AND "cardiovascular diseases"[MeSH] AND ("Meta-Analysis"[PT] OR "Randomized Controlled Trial"[PT])</div>
+
+    <p style="font-size:11px;color:#64748b;margin-bottom:4px">Buscar todo sobre un tema con alta evidencia</p>
+    <div class="copy-example" onclick="copiarTexto(this.textContent)">TU TEMA[TIAB] AND ("Meta-Analysis"[PT] OR "Systematic Review"[PT] OR "Randomized Controlled Trial"[PT]) AND "humans"[MeSH] AND 2018:2026[PDAT]</div>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─── DATOS ───────────────────────────────────────────────────────────────────
+const PROMPTS = [
+
+  // TRAUMATOLOGÍA / ORTOPEDIA
+  { sp:'Traumatología / Ortopedia', icon:'🩻',
+    keywords:'impingement hombro shoulder subacromial manguito ortopedia traumatología traumatologia',
+    name:'Impingement de hombro (síndrome subacromial)',
+    desc:'Fisioterapia vs artroscopía vs corticoides en síndrome de impingement',
+    query:'"shoulder impingement syndrome"[MeSH] AND ("physical therapy modalities"[MeSH] OR "arthroscopy"[MeSH] OR "glucocorticoids"[MeSH]) AND ("pain"[MeSH] OR "treatment outcome"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+
+  { sp:'Traumatología / Ortopedia', icon:'🩻',
+    keywords:'manguito rotador rotator cuff rotura hombro shoulder',
+    name:'Rotura de manguito rotador',
+    desc:'Reparación artroscópica vs tratamiento conservador',
+    query:'"rotator cuff injuries"[MeSH] AND ("arthroscopy"[MeSH] OR "physical therapy modalities"[MeSH]) AND ("treatment outcome"[MeSH] OR "pain"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Systematic Review"[PT])' },
+
+  { sp:'Traumatología / Ortopedia', icon:'🩻',
+    keywords:'lumbalgia dolor lumbar low back pain columna spine hernia disco',
+    name:'Lumbalgia / Dolor lumbar',
+    desc:'Ejercicio, fisioterapia, analgesia y manipulación en dolor lumbar',
+    query:'"low back pain"[MeSH] AND ("exercise therapy"[MeSH] OR "physical therapy modalities"[MeSH] OR "analgesics"[MeSH] OR "manipulation, spinal"[MeSH]) AND ("pain"[MeSH] OR "disability evaluation"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+
+  { sp:'Traumatología / Ortopedia', icon:'🩻',
+    keywords:'hernia discal disc herniation columna lumbar',
+    name:'Hernia de disco lumbar',
+    desc:'Cirugía vs tratamiento conservador en hernia discal lumbar',
+    query:'"intervertebral disc displacement"[MeSH] AND ("diskectomy"[MeSH] OR "physical therapy modalities"[MeSH] OR "analgesics"[MeSH]) AND ("pain"[MeSH] OR "disability evaluation"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+
+  { sp:'Traumatología / Ortopedia', icon:'🩻',
+    keywords:'artrosis rodilla knee osteoarthritis gonartrosis infiltración',
+    name:'Artrosis de rodilla (gonartrosis)',
+    desc:'Infiltraciones, fisioterapia y prótesis en artrosis de rodilla',
+    query:'"osteoarthritis, knee"[MeSH] AND ("hyaluronic acid"[MeSH] OR "glucocorticoids"[MeSH] OR "exercise therapy"[MeSH] OR "arthroplasty, replacement, knee"[MeSH]) AND ("pain"[MeSH] OR "treatment outcome"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+
+  { sp:'Traumatología / Ortopedia', icon:'🩻',
+    keywords:'artrosis cadera coxartrosis hip osteoarthritis prótesis',
+    name:'Artrosis de cadera (coxartrosis)',
+    desc:'Prótesis de cadera y tratamiento conservador en coxartrosis',
+    query:'"osteoarthritis, hip"[MeSH] AND ("arthroplasty, replacement, hip"[MeSH] OR "exercise therapy"[MeSH] OR "hyaluronic acid"[MeSH]) AND ("pain"[MeSH] OR "treatment outcome"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+
+  { sp:'Traumatología / Ortopedia', icon:'🩻',
+    keywords:'fractura cadera hip fracture anciano elderly cirugía',
+    name:'Fractura de cadera',
+    desc:'Artroplastia vs osteosíntesis en fractura de cadera en ancianos',
+    query:'"hip fractures"[MeSH] AND ("arthroplasty, replacement, hip"[MeSH] OR "fracture fixation, internal"[MeSH]) AND ("mortality"[MeSH] OR "recovery of function"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+
+  { sp:'Traumatología / Ortopedia', icon:'🩻',
+    keywords:'lca ligamento cruzado anterior cruciate knee rodilla',
+    name:'Lesión de ligamento cruzado anterior (LCA)',
+    desc:'Reconstrucción quirúrgica vs rehabilitación conservadora en lesión de LCA',
+    query:'"anterior cruciate ligament injuries"[MeSH] AND ("anterior cruciate ligament reconstruction"[MeSH] OR "physical therapy modalities"[MeSH]) AND ("treatment outcome"[MeSH] OR "return to sport"[TIAB]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+
+  { sp:'Traumatología / Ortopedia', icon:'🩻',
+    keywords:'menisco meniscus rodilla knee lesión cirugía',
+    name:'Lesión de menisco',
+    desc:'Meniscectomía artroscópica vs fisioterapia en lesión de menisco',
+    query:'"meniscus, tibial/surgery"[MeSH] AND ("arthroscopy"[MeSH] OR "physical therapy modalities"[MeSH]) AND ("pain"[MeSH] OR "treatment outcome"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Systematic Review"[PT])' },
+
+  { sp:'Traumatología / Ortopedia', icon:'🩻',
+    keywords:'epicondilalgia codo tenista tennis elbow lateral epicondylitis',
+    name:'Epicondilalgia lateral (codo de tenista)',
+    desc:'PRP, corticoides y fisioterapia en epicondilalgia lateral',
+    query:'"tennis elbow"[MeSH] AND ("platelet-rich plasma"[MeSH] OR "glucocorticoids"[MeSH] OR "physical therapy modalities"[MeSH]) AND ("pain"[MeSH] OR "treatment outcome"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+
+  { sp:'Traumatología / Ortopedia', icon:'🩻',
+    keywords:'tendinopatía aquílea achilles tendinopathy tendon',
+    name:'Tendinopatía del tendón de Aquiles',
+    desc:'Ejercicio excéntrico, PRP e infiltraciones en tendinopatía aquílea',
+    query:'"achilles tendon"[MeSH] AND ("tendinopathy"[MeSH]) AND ("exercise therapy"[MeSH] OR "platelet-rich plasma"[MeSH] OR "glucocorticoids"[MeSH]) AND ("pain"[MeSH] OR "treatment outcome"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+
+  { sp:'Traumatología / Ortopedia', icon:'🩻',
+    keywords:'inestabilidad hombro shoulder instability luxación dislocation bankart latarjet',
+    name:'Inestabilidad glenohumeral de hombro',
+    desc:'Latarjet vs Bankart artroscópico en inestabilidad de hombro',
+    query:'"joint instability"[MeSH] AND "shoulder joint"[MeSH] AND ("arthroscopy"[MeSH] OR Latarjet[TIAB] OR Bankart[TIAB]) AND ("recurrence"[MeSH] OR "treatment outcome"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Systematic Review"[PT])' },
+
+  { sp:'Traumatología / Ortopedia', icon:'🩻',
+    keywords:'esguince tobillo ankle sprain esguince',
+    name:'Esguince de tobillo',
+    desc:'Inmovilización, funcional y rehabilitación en esguince de tobillo',
+    query:'"ankle injuries"[MeSH] AND ("sprains and strains"[MeSH]) AND ("physical therapy modalities"[MeSH] OR "immobilization"[MeSH]) AND ("recovery of function"[MeSH] OR "pain"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+
+  { sp:'Traumatología / Ortopedia', icon:'🩻',
+    keywords:'fascitis plantar plantar fasciitis talón heel',
+    name:'Fascitis plantar',
+    desc:'Infiltraciones, ondas de choque y plantillas en fascitis plantar',
+    query:'"fasciitis, plantar"[MeSH] AND ("glucocorticoids"[MeSH] OR "extracorporeal shockwave therapy"[MeSH] OR "orthotic devices"[MeSH]) AND ("pain"[MeSH] OR "treatment outcome"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+
+  { sp:'Traumatología / Ortopedia', icon:'🩻',
+    keywords:'prp plasma rico plaquetas platelet rich plasma musculoesquelético',
+    name:'PRP en lesiones musculoesqueléticas',
+    desc:'Plasma rico en plaquetas en tendones, articulaciones y músculo',
+    query:'"platelet-rich plasma"[MeSH] AND ("musculoskeletal diseases"[MeSH] OR "tendinopathy"[MeSH] OR "osteoarthritis"[MeSH]) AND ("pain"[MeSH] OR "treatment outcome"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT]) AND 2015:2026[PDAT]' },
+
+  { sp:'Traumatología / Ortopedia', icon:'🩻',
+    keywords:'cervicalgia dolor cervical neck pain cervical',
+    name:'Cervicalgia / Dolor de cuello',
+    desc:'Fisioterapia, manipulación y ejercicio en dolor cervical',
+    query:'"neck pain"[MeSH] AND ("physical therapy modalities"[MeSH] OR "manipulation, spinal"[MeSH] OR "exercise therapy"[MeSH]) AND ("pain"[MeSH] OR "disability evaluation"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+
+  // KINESIOLOGÍA / REHABILITACIÓN
+  { sp:'Kinesiología / Rehabilitación', icon:'🏃',
+    keywords:'fisioterapia physical therapy rehabilitación dolor crónico chronic pain',
+    name:'Ejercicio terapéutico en dolor crónico',
+    desc:'Efectividad del ejercicio en dolor músculo-esquelético crónico',
+    query:'"exercise therapy"[MeSH] AND ("chronic pain"[MeSH] OR "musculoskeletal pain"[MeSH]) AND ("pain"[MeSH] OR "disability evaluation"[MeSH] OR "quality of life"[MeSH]) AND ("Meta-Analysis"[PT] OR "Systematic Review"[PT])' },
+
+  { sp:'Kinesiología / Rehabilitación', icon:'🏃',
+    keywords:'tens electroestimulación electroterapia electric stimulation dolor',
+    name:'TENS y electroestimulación en dolor',
+    desc:'TENS y electroestimulación en tratamiento del dolor',
+    query:'("transcutaneous electric nerve stimulation"[MeSH] OR "electric stimulation therapy"[MeSH]) AND ("pain"[MeSH] OR "musculoskeletal diseases"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+
+  { sp:'Kinesiología / Rehabilitación', icon:'🏃',
+    keywords:'ultrasonido ultrasound therapy terapéutico fisioterapia',
+    name:'Ultrasonido terapéutico',
+    desc:'Eficacia del ultrasonido en lesiones musculoesqueléticas',
+    query:'"ultrasonic therapy"[MeSH] AND ("musculoskeletal diseases"[MeSH] OR "pain"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+
+  { sp:'Kinesiología / Rehabilitación', icon:'🏃',
+    keywords:'pilates core lumbalgia low back pain ejercicio',
+    name:'Pilates / Estabilización de core en lumbalgia',
+    desc:'Pilates vs fisioterapia convencional en lumbalgia crónica',
+    query:'(pilates[TIAB] OR "core stability"[TIAB] OR "stabilization exercises"[TIAB]) AND "low back pain"[MeSH] AND ("pain"[MeSH] OR "disability evaluation"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+
+  { sp:'Kinesiología / Rehabilitación', icon:'🏃',
+    keywords:'rehabilitación stroke acv cerebrovascular fisioterapia',
+    name:'Rehabilitación post-ACV',
+    desc:'Fisioterapia y neurorehabilitación tras accidente cerebrovascular',
+    query:'"stroke rehabilitation"[MeSH] AND ("physical therapy modalities"[MeSH] OR "occupational therapy"[MeSH]) AND ("recovery of function"[MeSH] OR "motor activity"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+
+  // CARDIOLOGÍA
+  { sp:'Cardiología', icon:'❤️',
+    keywords:'hipertensión hypertension presión arterial blood pressure antihipertensivos',
+    name:'Hipertensión arterial — tratamiento farmacológico',
+    desc:'Antihipertensivos en reducción de PA y eventos cardiovasculares',
+    query:'"hypertension"[MeSH] AND "antihypertensive agents"[MeSH] AND ("blood pressure"[MeSH] OR "cardiovascular diseases"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+
+  { sp:'Cardiología', icon:'❤️',
+    keywords:'fibrilación auricular atrial fibrillation anticoagulación stroke warfarina',
+    name:'Fibrilación auricular — anticoagulación',
+    desc:'DOACs vs warfarina en prevención de ACV en FA',
+    query:'"atrial fibrillation"[MeSH] AND "anticoagulants"[MeSH] AND "stroke"[MeSH] AND ("Meta-Analysis"[PT] OR "Randomized Controlled Trial"[PT])' },
+
+  { sp:'Cardiología', icon:'❤️',
+    keywords:'infarto miocardio myocardial infarction heart attack SCA',
+    name:'Síndrome coronario agudo',
+    desc:'Antiagregación y revascularización en SCA',
+    query:'"acute coronary syndrome"[MeSH] AND ("platelet aggregation inhibitors"[MeSH] OR "percutaneous coronary intervention"[MeSH]) AND ("mortality"[MeSH] OR "treatment outcome"[MeSH]) AND "Randomized Controlled Trial"[PT]' },
+
+  { sp:'Cardiología', icon:'❤️',
+    keywords:'insuficiencia cardíaca heart failure tratamiento ieca',
+    name:'Insuficiencia cardíaca con FE reducida',
+    desc:'IECA, sacubitrilo y beta-bloqueantes en IC con FE reducida',
+    query:'"heart failure"[MeSH] AND ("angiotensin-converting enzyme inhibitors"[MeSH] OR sacubitril[TIAB] OR "adrenergic beta-antagonists"[MeSH]) AND ("mortality"[MeSH] OR "hospitalization"[MeSH]) AND "Randomized Controlled Trial"[PT]' },
+
+  // ENDOCRINOLOGÍA
+  { sp:'Endocrinología', icon:'🍬',
+    keywords:'diabetes tipo 2 type 2 diabetes HbA1c glucemia metformina',
+    name:'Diabetes tipo 2 — control glucémico',
+    desc:'Comparación de hipoglucemiantes en reducción de HbA1c',
+    query:'"diabetes mellitus, type 2"[MeSH] AND "hypoglycemic agents"[MeSH] AND "glycated hemoglobin"[MeSH] AND ("Meta-Analysis"[PT] OR "Randomized Controlled Trial"[PT]) AND 2015:2026[PDAT]' },
+
+  { sp:'Endocrinología', icon:'🍬',
+    keywords:'sglt2 inhibidores empagliflozina dapagliflozina diabetes renal cardiaco',
+    name:'Inhibidores SGLT2 (empagliflozina, dapagliflozina)',
+    desc:'Protección renal y cardiovascular con iSGLT2',
+    query:'"sodium-glucose transporter 2 inhibitors"[MeSH] AND ("diabetic nephropathies"[MeSH] OR "cardiovascular diseases"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT]) AND 2018:2026[PDAT]' },
+
+  { sp:'Endocrinología', icon:'🍬',
+    keywords:'glp1 semaglutida liraglutida obesidad diabetes pérdida peso',
+    name:'GLP-1 agonistas (semaglutida, liraglutida)',
+    desc:'Pérdida de peso y outcomes cardiovasculares',
+    query:'("glucagon-like peptide 1"[MeSH] OR semaglutide[TIAB] OR liraglutide[TIAB]) AND (obesity[MeSH] OR "diabetes mellitus, type 2"[MeSH]) AND "body weight"[MeSH] AND "Randomized Controlled Trial"[PT]' },
+
+  { sp:'Endocrinología', icon:'🍬',
+    keywords:'hipotiroidismo hypothyroidism levotiroxina TSH tiroides',
+    name:'Hipotiroidismo — levotiroxina',
+    desc:'Dosis de levotiroxina y objetivos de TSH',
+    query:'"hypothyroidism"[MeSH] AND "thyroxine"[MeSH] AND "thyrotropin"[MeSH] AND ("Randomized Controlled Trial"[PT] OR "Review"[PT])' },
+
+  // NEUMOLOGÍA
+  { sp:'Neumología', icon:'🫁',
+    keywords:'epoc copd broncodilatadores lama laba exacerbaciones',
+    name:'EPOC — broncodilatadores de larga acción',
+    desc:'LABA/LAMA en exacerbaciones y función pulmonar en EPOC',
+    query:'"pulmonary disease, chronic obstructive"[MeSH] AND ("bronchodilator agents"[MeSH] OR "adrenergic beta-2 receptor agonists"[MeSH]) AND "disease exacerbation"[MeSH] AND "Randomized Controlled Trial"[PT]' },
+
+  { sp:'Neumología', icon:'🫁',
+    keywords:'asma asthma corticoides inhalados ics exacerbaciones',
+    name:'Asma — corticosteroides inhalados',
+    desc:'ICS en control del asma y prevención de exacerbaciones',
+    query:'"asthma"[MeSH] AND "adrenal cortex hormones"[MeSH] AND "administration, inhalation"[MeSH] AND "disease exacerbation"[MeSH] AND "Randomized Controlled Trial"[PT]' },
+
+  { sp:'Neumología', icon:'🫁',
+    keywords:'neumonía pneumonia antibióticos comunitaria NAC',
+    name:'Neumonía adquirida en la comunidad',
+    desc:'Antibioticoterapia en NAC — duración y tipo',
+    query:'"pneumonia"[MeSH] AND "anti-bacterial agents"[MeSH] AND "community-acquired infections"[MeSH] AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+
+  // NEUROLOGÍA
+  { sp:'Neurología', icon:'🧠',
+    keywords:'acv stroke ictus trombólisis tpa trombectomía',
+    name:'ACV isquémico — trombólisis y trombectomía',
+    desc:'tPA y trombectomía mecánica en ACV isquémico agudo',
+    query:'"stroke"[MeSH] AND ("thrombolytic therapy"[MeSH] OR "thrombectomy"[MeSH] OR "tissue plasminogen activator"[MeSH]) AND "Randomized Controlled Trial"[PT]' },
+
+  { sp:'Neurología', icon:'🧠',
+    keywords:'migraña migraine triptán gepant CGRP cefalea',
+    name:'Migraña — tratamiento agudo y profilaxis',
+    desc:'Triptanes, gepantes y anti-CGRP en migraña',
+    query:'"migraine disorders"[MeSH] AND ("tryptamines"[MeSH] OR gepant[TIAB] OR "calcitonin gene-related peptide"[MeSH]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+
+  { sp:'Neurología', icon:'🧠',
+    keywords:'epilepsia epilepsy anticonvulsivantes levetiracetam lamotrigina',
+    name:'Epilepsia — farmacoterapia de inicio',
+    desc:'Comparación de anticonvulsivantes como monoterapia inicial',
+    query:'"epilepsy"[MeSH] AND ("anticonvulsants"[MeSH] OR levetiracetam[TIAB] OR lamotrigine[TIAB]) AND "Randomized Controlled Trial"[PT]' },
+
+  { sp:'Neurología', icon:'🧠',
+    keywords:'alzheimer demencia donepezilo memantina lecanemab',
+    name:'Enfermedad de Alzheimer — farmacoterapia',
+    desc:'Inhibidores de colinesterasa y anticuerpos en Alzheimer',
+    query:'"Alzheimer disease"[MeSH] AND ("cholinesterase inhibitors"[MeSH] OR donepezil[TIAB] OR memantine[TIAB] OR lecanemab[TIAB]) AND "Randomized Controlled Trial"[PT]' },
+
+  // INFECTOLOGÍA
+  { sp:'Infectología', icon:'🦠',
+    keywords:'covid 19 covid19 antiviral nirmatrelvir remdesivir',
+    name:'COVID-19 — tratamiento antiviral',
+    desc:'Nirmatrelvir, remdesivir y molnupiravir en COVID-19',
+    query:'"COVID-19"[MeSH] AND ("antiviral agents"[MeSH] OR nirmatrelvir[TIAB] OR remdesivir[TIAB]) AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT]) AND 2021:2026[PDAT]' },
+
+  { sp:'Infectología', icon:'🦠',
+    keywords:'sepsis séptico manejo fluidos vasopresores antibióticos',
+    name:'Sepsis — manejo hemodinámico',
+    desc:'Fluidos, vasopresores y antibióticos en sepsis',
+    query:'"sepsis"[MeSH] AND ("fluid therapy"[MeSH] OR "vasoconstrictor agents"[MeSH] OR "anti-bacterial agents"[MeSH]) AND ("mortality"[MeSH] OR "organ dysfunction scores"[MeSH]) AND "Randomized Controlled Trial"[PT]' },
+
+  // GASTROENTEROLOGÍA
+  { sp:'Gastroenterología', icon:'🫃',
+    keywords:'reflujo erge gastroesofágico gerd ibp omeprazol',
+    name:'ERGE — inhibidores de bomba de protones',
+    desc:'IBP en tratamiento de ERGE y esofagitis erosiva',
+    query:'"gastroesophageal reflux"[MeSH] AND "proton pump inhibitors"[MeSH] AND ("esophagitis"[MeSH] OR symptoms[TIAB]) AND "Randomized Controlled Trial"[PT]' },
+
+  // PSIQUIATRÍA
+  { sp:'Psiquiatría', icon:'🧩',
+    keywords:'depresión depression antidepresivos ssri isrs terapia cognitiva',
+    name:'Depresión mayor — antidepresivos vs psicoterapia',
+    desc:'ISRS vs TCC en depresión mayor moderada-grave',
+    query:'"depressive disorder, major"[MeSH] AND ("antidepressive agents"[MeSH] OR "cognitive behavioral therapy"[MeSH]) AND "treatment outcome"[MeSH] AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+
+  { sp:'Psiquiatría', icon:'🧩',
+    keywords:'ansiedad anxiety trastorno ansioso tratamiento',
+    name:'Trastornos de ansiedad — tratamiento',
+    desc:'Benzodiacepinas, ISRS y TCC en trastornos de ansiedad',
+    query:'"anxiety disorders"[MeSH] AND ("benzodiazepines"[MeSH] OR "serotonin uptake inhibitors"[MeSH] OR "cognitive behavioral therapy"[MeSH]) AND "Randomized Controlled Trial"[PT]' },
+
+  // ONCOLOGÍA
+  { sp:'Oncología', icon:'🎗️',
+    keywords:'cáncer mama breast cancer her2 trastuzumab herceptin',
+    name:'Cáncer de mama HER2+ — terapia dirigida',
+    desc:'Trastuzumab, pertuzumab y T-DM1 en cáncer de mama HER2+',
+    query:'"breast neoplasms"[MeSH] AND "receptor, erbb-2"[MeSH] AND ("trastuzumab"[MeSH] OR pertuzumab[TIAB]) AND "Randomized Controlled Trial"[PT]' },
+
+  { sp:'Oncología', icon:'🎗️',
+    keywords:'cáncer pulmón lung cancer inmunoterapia pembrolizumab nivolumab checkpoint',
+    name:'Cáncer de pulmón — inmunoterapia',
+    desc:'Inhibidores de checkpoint en cáncer de pulmón no microcítico',
+    query:'"carcinoma, non-small-cell lung"[MeSH] AND ("immune checkpoint inhibitors"[MeSH] OR pembrolizumab[TIAB] OR nivolumab[TIAB]) AND ("overall survival"[TIAB] OR "progression-free survival"[TIAB]) AND "Randomized Controlled Trial"[PT]' },
+
+  // REUMATOLOGÍA
+  { sp:'Reumatología', icon:'💊',
+    keywords:'artritis reumatoide rheumatoid arthritis biológicos anti-tnf',
+    name:'Artritis reumatoide — FAMEs biológicos',
+    desc:'Anti-TNF, tocilizumab y abatacept en AR refractaria',
+    query:'"arthritis, rheumatoid"[MeSH] AND ("tumor necrosis factor inhibitors"[MeSH] OR tocilizumab[TIAB] OR abatacept[TIAB]) AND "Randomized Controlled Trial"[PT]' },
+
+  { sp:'Reumatología', icon:'💊',
+    keywords:'osteoporosis bisfosfonatos denosumab fractura fragilidad',
+    name:'Osteoporosis — tratamiento antiosteoporótico',
+    desc:'Bifosfonatos y denosumab en reducción de fracturas',
+    query:'"osteoporosis"[MeSH] AND ("diphosphonates"[MeSH] OR denosumab[TIAB]) AND "fractures, bone"[MeSH] AND ("Meta-Analysis"[PT] OR "Randomized Controlled Trial"[PT])' },
+
+  { sp:'Reumatología', icon:'💊',
+    keywords:'gota uricemia allopurinol febuxostat ácido úrico',
+    name:'Gota — tratamiento hipouricemiante',
+    desc:'Alopurinol y febuxostat en reducción de ácido úrico y ataques',
+    query:'"gout"[MeSH] AND ("allopurinol"[MeSH] OR febuxostat[TIAB]) AND ("uric acid"[MeSH] OR "gout attacks"[TIAB]) AND ("Meta-Analysis"[PT] OR "Randomized Controlled Trial"[PT])' },
+
+  // PEDIATRÍA
+  { sp:'Pediatría', icon:'👶',
+    keywords:'fiebre niños fiebre pediátrica ibuprofeno paracetamol',
+    name:'Fiebre en niños — manejo',
+    desc:'Ibuprofeno vs paracetamol en fiebre pediátrica',
+    query:'"fever"[MeSH] AND ("ibuprofen"[MeSH] OR "acetaminophen"[MeSH]) AND "child"[MeSH] AND ("Randomized Controlled Trial"[PT] OR "Meta-Analysis"[PT])' },
+
+  { sp:'Pediatría', icon:'👶',
+    keywords:'tdah adhd metilfenidato atomoxetina niños déficit atención',
+    name:'TDAH — tratamiento farmacológico en niños',
+    desc:'Metilfenidato vs atomoxetina en TDAH',
+    query:'"attention deficit disorder with hyperactivity"[MeSH] AND ("methylphenidate"[MeSH] OR atomoxetine[TIAB]) AND "child"[MeSH] AND ("Meta-Analysis"[PT] OR "Randomized Controlled Trial"[PT])' },
+
+  // MEDICINA INTERNA
+  { sp:'Medicina Interna', icon:'🩺',
+    keywords:'tromboembolia pulmonar TEP anticoagulación heparina',
+    name:'Tromboembolismo pulmonar — diagnóstico y tratamiento',
+    desc:'Dímero-D, TCMD y anticoagulación en TEP',
+    query:'"pulmonary embolism"[MeSH] AND ("anticoagulants"[MeSH] OR "fibrin fragment D"[MeSH]) AND ("diagnosis"[MH:noexp] OR "Randomized Controlled Trial"[PT]) AND "humans"[MeSH]' },
+
+  { sp:'Medicina Interna', icon:'🩺',
+    keywords:'anemia hierro iron deficiency anemia ferropénica ferritina',
+    name:'Anemia ferropénica — tratamiento con hierro',
+    desc:'Hierro parenteral vs oral en anemia ferropénica',
+    query:'"anemia, iron-deficiency"[MeSH] AND ("iron"[MeSH] OR "ferric compounds"[MeSH]) AND "infusions, intravenous"[MeSH] AND "Randomized Controlled Trial"[PT]' },
+
+];
+
+// ─── DICCIONARIO ES→EN ────────────────────────────────────────────────────────
+const ES_EN = {
+  'síndrome de impingement':'shoulder impingement syndrome',
+  'síndrome subacromial':'subacromial impingement syndrome',
+  'impingement de hombro':'shoulder impingement syndrome',
+  'impingement hombro':'shoulder impingement syndrome',
+  'manguito rotador':'rotator cuff',
+  'rotura manguito':'rotator cuff tears',
+  'rotura del manguito':'rotator cuff injuries',
+  'inestabilidad de hombro':'shoulder instability',
+  'luxación hombro':'shoulder dislocation',
+  'fractura de cadera':'hip fractures',
+  'fractura cadera':'hip fractures',
+  'artrosis de rodilla':'osteoarthritis knee',
+  'gonartrosis':'osteoarthritis knee',
+  'coxartrosis':'osteoarthritis hip',
+  'artrosis de cadera':'osteoarthritis hip',
+  'artrosis':'osteoarthritis',
+  'prótesis de cadera':'hip replacement arthroplasty',
+  'prótesis de rodilla':'knee replacement arthroplasty',
+  'ligamento cruzado anterior':'anterior cruciate ligament',
+  'lesión lca':'anterior cruciate ligament injury',
+  'lca':'anterior cruciate ligament',
+  'menisco':'meniscus',
+  'lesión de menisco':'meniscus injury',
+  'lumbalgia':'low back pain',
+  'dolor lumbar':'low back pain',
+  'hernia de disco':'intervertebral disc displacement',
+  'hernia discal':'intervertebral disc displacement',
+  'epicondilalgia':'lateral epicondylitis',
+  'codo de tenista':'tennis elbow',
+  'tendinopatía aquílea':'achilles tendinopathy',
+  'tendón de aquiles':'achilles tendon',
+  'fascitis plantar':'plantar fasciitis',
+  'esguince de tobillo':'ankle sprain',
+  'esguince tobillo':'ankle sprain',
+  'esguince':'sprain',
+  'fractura':'fracture',
+  'hombro':'shoulder',
+  'rodilla':'knee',
+  'cadera':'hip',
+  'tobillo':'ankle',
+  'columna':'spine',
+  'cervicalgia':'neck pain',
+  'dolor cervical':'neck pain',
+  'dolor de cuello':'neck pain',
+  'infarto':'myocardial infarction',
+  'infarto agudo de miocardio':'myocardial infarction',
+  'fibrilación auricular':'atrial fibrillation',
+  'insuficiencia cardíaca':'heart failure',
+  'hipertensión arterial':'hypertension',
+  'hipertensión':'hypertension',
+  'diabetes tipo 2':'type 2 diabetes mellitus',
+  'diabetes mellitus tipo 2':'diabetes mellitus type 2',
+  'diabetes':'diabetes mellitus',
+  'hipotiroidismo':'hypothyroidism',
+  'obesidad':'obesity',
+  'accidente cerebrovascular':'stroke',
+  'acv':'stroke',
+  'epilepsia':'epilepsy',
+  'migraña':'migraine disorders',
+  'alzheimer':'alzheimer disease',
+  'cefalea':'headache',
+  'reflujo gastroesofágico':'gastroesophageal reflux',
+  'erge':'gastroesophageal reflux',
+  'neumonía':'pneumonia',
+  'sepsis':'sepsis',
+  'epoc':'pulmonary disease chronic obstructive',
+  'asma':'asthma',
+  'cáncer':'neoplasms',
+  'artritis reumatoide':'rheumatoid arthritis',
+  'osteoporosis':'osteoporosis',
+  'depresión':'depressive disorder major',
+  'ansiedad':'anxiety disorders',
+  'fisioterapia':'physical therapy modalities',
+  'rehabilitación':'rehabilitation',
+  'ejercicio terapéutico':'exercise therapy',
+  'electroestimulación':'electric stimulation therapy',
+  'tens':'transcutaneous electric nerve stimulation',
+  'ultrasonido terapéutico':'ultrasonic therapy',
+  'prp':'platelet-rich plasma',
+  'plasma rico en plaquetas':'platelet-rich plasma',
+  'pilates':'pilates',
+  'tromboembolia pulmonar':'pulmonary embolism',
+  'anemia ferropénica':'iron deficiency anemia',
+};
+
+// ─── RENDER CATÁLOGO ──────────────────────────────────────────────────────────
+function renderCatalogo() {
+  const byCat = {};
+  PROMPTS.forEach(p => {
+    if (!byCat[p.sp]) byCat[p.sp] = [];
+    byCat[p.sp].push(p);
+  });
+
+  let html = '';
+  for (const [cat, items] of Object.entries(byCat)) {
+    const icon = items[0].icon;
+    html += `<div class="specialty" data-cat="${cat}">
+      <div class="specialty-title">${icon} ${cat}</div>`;
+    items.forEach((p, i) => {
+      html += `<div class="card" data-keywords="${p.keywords} ${p.name.toLowerCase()} ${p.desc.toLowerCase()}">
+        <h3>${p.name}</h3>
+        <p>${p.desc}</p>
+        <div class="card-query">${p.query}</div>
+        <div class="card-btns">
+          <button class="btn btn-blue" onclick="abrir(${PROMPTS.indexOf(p)})">🌐 Abrir en PubMed</button>
+          <button class="btn btn-gray" onclick="copiar(${PROMPTS.indexOf(p)})">📋 Copiar consulta</button>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+  document.getElementById('catalogo-lista').innerHTML = html;
+}
+
+function filtrar(q) {
+  const f = q.toLowerCase().trim();
+  document.querySelectorAll('#catalogo-lista .card').forEach(card => {
+    const kw = card.dataset.keywords || '';
+    card.style.display = (!f || kw.includes(f)) ? '' : 'none';
+  });
+  document.querySelectorAll('#catalogo-lista .specialty').forEach(sec => {
+    const any = [...sec.querySelectorAll('.card')].some(c => c.style.display !== 'none');
+    sec.style.display = any ? '' : 'none';
+  });
+}
+
+// ─── ACCIONES ────────────────────────────────────────────────────────────────
+function abrir(idx) {
+  const q = PROMPTS[idx].query;
+  window.open('https://pubmed.ncbi.nlm.nih.gov/?term=' + encodeURIComponent(q), '_blank');
+}
+
+function copiar(idx) {
+  const q = PROMPTS[idx].query;
+  navigator.clipboard.writeText(q).then(() => showToast('✓ Consulta copiada')).catch(() => {
+    prompt('Copiá este texto:', q);
+  });
+}
+
+function copiarTexto(t) {
+  navigator.clipboard.writeText(t.trim()).then(() => showToast('✓ Ejemplo copiado')).catch(() => {
+    prompt('Copiá este texto:', t.trim());
+  });
+}
+
+// ─── CONSTRUCTOR ──────────────────────────────────────────────────────────────
+function buildQuery() {
+  const tema = document.getElementById('c-tema').value.trim();
+  const inter = document.getElementById('c-inter').value.trim();
+  const out = document.getElementById('c-outcome').value.trim();
+  const tipo = document.getElementById('c-tipo').value;
+  const años = document.getElementById('c-años').value.trim();
+  const idioma = document.getElementById('c-idioma').value;
+  const especie = document.getElementById('c-especie').value;
+
+  if (!tema) { document.getElementById('c-result').textContent = 'Completá al menos el campo Tema.'; return; }
+
+  const parts = [];
+  if (tema) parts.push(tema.includes(' ') ? `"${tema}"[TIAB]` : `${tema}[TIAB]`);
+  if (inter) parts.push(inter.includes(' ') ? `"${inter}"[TIAB]` : `${inter}[TIAB]`);
+  if (out) parts.push(out.includes(' ') ? `"${out}"[TIAB]` : `${out}[TIAB]`);
+  if (tipo) parts.push(tipo);
+  if (años) parts.push(`${años}[PDAT]`);
+  if (idioma) parts.push(idioma);
+  if (especie) parts.push(especie);
+
+  const q = parts.join(' AND ');
+  document.getElementById('c-result').textContent = q;
+}
+
+function abrirPubMedConstructor() {
+  const q = document.getElementById('c-result').textContent.trim();
+  if (!q || q === 'Completá al menos el campo Tema.') { showToast('Completá primero el campo Tema'); return; }
+  window.open('https://pubmed.ncbi.nlm.nih.gov/?term=' + encodeURIComponent(q), '_blank');
+}
+
+function copiarConstructor() {
+  const q = document.getElementById('c-result').textContent.trim();
+  if (!q || q === 'Completá al menos el campo Tema.') { showToast('Completá primero el campo Tema'); return; }
+  navigator.clipboard.writeText(q).then(() => showToast('✓ Consulta copiada')).catch(() => prompt('Copiá:', q));
+}
+
+// ─── TRADUCTOR ────────────────────────────────────────────────────────────────
+function traducir(val) {
+  const term = val.toLowerCase().trim();
+  if (!term) { document.getElementById('t-result').textContent = 'Escribí un término para ver la traducción...'; return; }
+
+  const keys = Object.keys(ES_EN).sort((a, b) => b.length - a.length);
+  let traducido = term;
+  let encontrado = null;
+  for (const key of keys) {
+    if (term.includes(key)) {
+      traducido = term.replace(key, ES_EN[key]);
+      encontrado = { es: key, en: ES_EN[key] };
+      break;
+    }
+  }
+
+  const box = document.getElementById('t-result');
+  if (encontrado) {
+    box.textContent = `"${encontrado.es}" → "${encontrado.en}"\n\nEn inglés: ${traducido}`;
+    box.style.color = '#166534';
+    box.style.background = '#dcfce7';
+    box.style.border = '1px solid #86efac';
+  } else {
+    box.textContent = `No hay traducción automática para "${term}".\nBuscá el término en inglés en MeSH Browser: https://meshb.nlm.nih.gov`;
+    box.style.color = '#92400e';
+    box.style.background = '#fef9c3';
+    box.style.border = '1px solid #fde68a';
+  }
+}
+
+function usarTraduccion() {
+  const box = document.getElementById('t-result');
+  const text = box.textContent;
+  const match = text.match(/→ "(.+?)"/);
+  if (match) {
+    document.getElementById('c-tema').value = match[1];
+    buildQuery();
+    showToast('✓ Término cargado en el constructor');
+  } else {
+    showToast('Traducí un término primero');
+  }
+}
+
+// ─── TAB NAVIGATION ──────────────────────────────────────────────────────────
+function tab(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ─── TOAST ───────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+renderCatalogo();
+</script>
+</body>
+</html>
