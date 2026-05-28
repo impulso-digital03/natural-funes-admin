@@ -357,7 +357,7 @@ const STORE_ADDRESS = 'Av. Fuerza Aérea 2092 Sur, Funes, Santa Fe, Argentina';
 const NOTIFY_URL   = 'https://zxbdzeggkdrggelxskfu.supabase.co/functions/v1/notify-order-status';
 const MAPS_KEY     = 'AIzaSyBJuyuzkqqORuwm1VGHu6mWtlsWIvjsZ1k';
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ═══════════════════════════════════════════════════════
 //  STATE
@@ -476,7 +476,7 @@ async function renderPedidos() {
   today.setHours(0,0,0,0);
   const todayISO = today.toISOString();
 
-  const { data: allOrders, error: err1 } = await supabase
+  const { data: allOrders, error: err1 } = await sb
     .from('orders')
     .select('id,order_number,nombre,apellido,telefono,domicilio,total,status,delivery_type,payment_method,payment_status,created_at,notes')
     .order('created_at', { ascending: false });
@@ -610,7 +610,7 @@ async function changeStatus(selectEl) {
   selectEl.disabled = true;
 
   // Update in Supabase
-  const { data, error } = await supabase
+  const { data, error } = await sb
     .from('orders')
     .update({ status: newStatus })
     .eq('id', id)
@@ -655,7 +655,7 @@ async function openOrderItems(orderId, orderNum) {
   document.getElementById('order-modal-body').innerHTML = '<div class="loading-text">Cargando items...</div>';
   openModal('order-modal');
 
-  const { data: items, error } = await supabase
+  const { data: items, error } = await sb
     .from('order_items')
     .select('*')
     .eq('order_id', orderId);
@@ -719,7 +719,7 @@ async function openDispatchModal() {
   }
 
   // Fetch listo orders with domicilio
-  const { data: orders, error } = await supabase
+  const { data: orders, error } = await sb
     .from('orders')
     .select('id,order_number,nombre,apellido,telefono,domicilio,total,status')
     .eq('status', 'listo')
@@ -839,7 +839,7 @@ async function confirmDispatch() {
     const order = orderedOrders[i];
     const eta = etas[i];
 
-    const { data: updated, error } = await supabase
+    const { data: updated, error } = await sb
       .from('orders')
       .update({ status: 'en camino' })
       .eq('id', order.id)
@@ -888,10 +888,10 @@ async function renderProductos() {
   container.innerHTML = '<div class="loading-text">Cargando productos...</div>';
 
   // Load categories
-  const { data: cats } = await supabase.from('categories').select('id,name').order('name');
+  const { data: cats } = await sb.from('categories').select('id,name').order('name');
   categories = cats || [];
 
-  const { data: prods, error } = await supabase
+  const { data: prods, error } = await sb
     .from('products')
     .select('id,name,description,price,cost_price,stock,available,category_id')
     .order('name');
@@ -994,7 +994,7 @@ function inlineEditStock(productId, currentStock) {
 
   const save = async () => {
     const newVal = parseInt(input.value) || 0;
-    const { error } = await supabase.from('products').update({ stock: newVal }).eq('id', productId);
+    const { error } = await sb.from('products').update({ stock: newVal }).eq('id', productId);
     if (!error) {
       const prod = allProducts.find(p => p.id === productId);
       if (prod) prod.stock = newVal;
@@ -1010,7 +1010,7 @@ function inlineEditStock(productId, currentStock) {
 }
 
 async function toggleAvailable(productId, available) {
-  const { error } = await supabase.from('products').update({ available }).eq('id', productId);
+  const { error } = await sb.from('products').update({ available }).eq('id', productId);
   if (error) {
     toast('Error al actualizar disponibilidad', 'error');
     return;
@@ -1022,7 +1022,7 @@ async function toggleAvailable(productId, available) {
 
 async function deleteProduct(id, name) {
   if (!confirm(`¿Eliminar "${name}"? Esta acción no se puede deshacer.`)) return;
-  const { error } = await supabase.from('products').delete().eq('id', id);
+  const { error } = await sb.from('products').delete().eq('id', id);
   if (error) {
     toast('Error al eliminar: ' + error.message, 'error');
     return;
@@ -1100,14 +1100,14 @@ async function saveProduct() {
 
   let error;
   if (id) {
-    const res = await supabase.from('products').update(payload).eq('id', id);
+    const res = await sb.from('products').update(payload).eq('id', id);
     error = res.error;
     if (!error) {
       const idx = allProducts.findIndex(p => p.id === id);
       if (idx >= 0) allProducts[idx] = { ...allProducts[idx], ...payload, id };
     }
   } else {
-    const res = await supabase.from('products').insert(payload).select().single();
+    const res = await sb.from('products').insert(payload).select().single();
     error = res.error;
     if (!error && res.data) allProducts.unshift(res.data);
   }
@@ -1120,8 +1120,8 @@ async function saveProduct() {
     if (error.message && error.message.includes('cost_price')) {
       delete payload.cost_price;
       const res2 = id
-        ? await supabase.from('products').update(payload).eq('id', id)
-        : await supabase.from('products').insert(payload).select().single();
+        ? await sb.from('products').update(payload).eq('id', id)
+        : await sb.from('products').insert(payload).select().single();
       if (res2.error) {
         toast('Error al guardar: ' + res2.error.message, 'error');
         return;
@@ -1144,7 +1144,7 @@ async function renderWhatsapp() {
   const container = document.getElementById('tab-whatsapp');
   container.innerHTML = '<div class="loading-text">Cargando mensajes...</div>';
 
-  const { data: msgs, error } = await supabase
+  const { data: msgs, error } = await sb
     .from('whatsapp_messages')
     .select('id,from_number,from_name,body,message_type,intent,created_at')
     .order('created_at', { ascending: false })
