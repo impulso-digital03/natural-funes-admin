@@ -875,6 +875,29 @@ async function confirmDispatch() {
   closeModal('dispatch-modal');
   toast(`${count} pedido${count!==1?'s':''} despachado${count!==1?'s':''} 🛵`);
   renderPedidos();
+
+  // ── Abrir Google Maps con la ruta completa ──────────────
+  if (orderedOrders.length > 0) {
+    const stops = orderedOrders.map(o => encodeURIComponent(o.domicilio));
+    let mapsUrl;
+    if (stops.length === 1) {
+      // Un solo destino
+      mapsUrl = `https://www.google.com/maps/dir/?api=1` +
+        `&origin=${encodeURIComponent(STORE_ADDRESS)}` +
+        `&destination=${stops[0]}` +
+        `&travelmode=driving`;
+    } else {
+      // Múltiples paradas: último es destino, intermedios son waypoints
+      const destination = stops[stops.length - 1];
+      const waypoints = stops.slice(0, -1).join('|');
+      mapsUrl = `https://www.google.com/maps/dir/?api=1` +
+        `&origin=${encodeURIComponent(STORE_ADDRESS)}` +
+        `&destination=${destination}` +
+        `&waypoints=${waypoints}` +
+        `&travelmode=driving`;
+    }
+    window.open(mapsUrl, '_blank');
+  }
 }
 
 // ═══════════════════════════════════════════════════════
