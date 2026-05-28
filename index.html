@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Natural Funes — Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBJuyuzkqqORuwm1VGHu6mWtlsWIvjsZ1k&callback=initGoogleMaps" async defer></script>
+<!-- Google Maps se carga dinámicamente al usar el despacho -->
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,sans-serif;background:#f0fdf4;color:#111827;font-size:14px}
@@ -374,6 +374,24 @@ function initGoogleMaps() {
   googleMapsReady = true;
 }
 
+function loadGoogleMaps() {
+  return new Promise((resolve, reject) => {
+    if (googleMapsReady) { resolve(); return; }
+    if (document.querySelector('script[data-maps]')) {
+      // already loading, wait
+      const check = setInterval(() => { if (googleMapsReady) { clearInterval(check); resolve(); } }, 100);
+      return;
+    }
+    window._mapsResolve = resolve;
+    window.initGoogleMaps = function() { googleMapsReady = true; window._mapsResolve && window._mapsResolve(); };
+    const s = document.createElement('script');
+    s.setAttribute('data-maps','1');
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${MAPS_KEY}&callback=initGoogleMaps`;
+    s.onerror = () => reject(new Error('No se pudo cargar Google Maps'));
+    document.head.appendChild(s);
+  });
+}
+
 // ═══════════════════════════════════════════════════════
 //  LOGIN
 // ═══════════════════════════════════════════════════════
@@ -685,6 +703,14 @@ async function openDispatchModal() {
     </div>`;
   document.getElementById('dispatch-confirm-btn').style.display = 'none';
   openModal('dispatch-modal');
+
+  try {
+    await loadGoogleMaps();
+  } catch(e) {
+    document.getElementById('dispatch-modal-body').innerHTML = `
+      <div class="empty-state">Google Maps no está disponible. Verificá la clave de API.</div>`;
+    return;
+  }
 
   if (!googleMapsReady) {
     document.getElementById('dispatch-modal-body').innerHTML = `
