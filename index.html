@@ -1247,7 +1247,7 @@ async function renderWhatsapp() {
 //  WHATSAPP + ETA
 // ═══════════════════════════════════════════════════════
 
-// Calcula ETA con Google Maps Distance Matrix y abre WhatsApp
+// Calcula ETA con Google Maps Directions y abre WhatsApp
 async function abrirWhatsAppConETA(telefono, nombre, orderNum, domicilio) {
   let etaTexto = null;
 
@@ -1255,13 +1255,13 @@ async function abrirWhatsAppConETA(telefono, nombre, orderNum, domicilio) {
     await loadGoogleMaps();
 
     if (googleMapsReady && domicilio) {
-      const distService = new google.maps.DistanceMatrixService();
       const destino = domicilio.trim() + ', Funes, Santa Fe, Argentina';
+      const directionsService = new google.maps.DirectionsService();
 
       const result = await new Promise((resolve, reject) => {
-        distService.getDistanceMatrix({
-          origins: [STORE_ADDRESS],
-          destinations: [destino],
+        directionsService.route({
+          origin: STORE_ADDRESS,
+          destination: destino,
           travelMode: google.maps.TravelMode.DRIVING,
         }, (res, status) => {
           if (status === 'OK') resolve(res);
@@ -1269,22 +1269,19 @@ async function abrirWhatsAppConETA(telefono, nombre, orderNum, domicilio) {
         });
       });
 
-      const elemento = result.rows[0].elements[0];
-      if (elemento.status === 'OK') {
-        const segundos = elemento.duration.value;
-        const minutos  = Math.round(segundos / 60);
-        const eta      = new Date(Date.now() + segundos * 1000);
-        const hhmm     = `${String(eta.getHours()).padStart(2,'0')}:${String(eta.getMinutes()).padStart(2,'0')}`;
-        etaTexto = `aproximadamente a las ${hhmm} (${minutos} min)`;
-      }
+      const segundos = result.routes[0].legs[0].duration.value;
+      const minutos  = Math.round(segundos / 60);
+      const eta      = new Date(Date.now() + segundos * 1000);
+      const hhmm     = `${String(eta.getHours()).padStart(2,'0')}:${String(eta.getMinutes()).padStart(2,'0')}`;
+      etaTexto = `a las ${hhmm} (${minutos} min)`;
     }
   } catch(e) {
     console.warn('ETA calc error:', e);
   }
 
   const tiempoMsj = etaTexto
-    ? `Tu pedido llega ${etaTexto}.`
-    : 'Tu pedido está en camino 🛵';
+    ? `Llega aproximadamente ${etaTexto}.`
+    : 'Ya está en camino 🛵';
 
   const msg = `Hola ${nombre || 'cliente'} 👋! Tu pedido #${orderNum} de Natural Funes está en camino. ${tiempoMsj} ¡Muchas gracias por tu compra! 🌿`;
 
