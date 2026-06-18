@@ -4,33 +4,46 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Natural Funes – Cadete</title>
-<link rel="manifest" href="/manifest.json">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Segoe UI', sans-serif; background: #f0fdf4; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 24px 16px; }
   .logo { color: #16a34a; font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-  .subtitle { color: #6b7280; font-size: 13px; margin-bottom: 28px; }
-  .card { background: #fff; border-radius: 16px; padding: 24px; width: 100%; max-width: 400px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 16px; }
-  .card h2 { font-size: 15px; color: #374151; margin-bottom: 12px; font-weight: 600; }
+  .subtitle { color: #6b7280; font-size: 13px; margin-bottom: 24px; }
+  .card { background: #fff; border-radius: 16px; padding: 20px; width: 100%; max-width: 400px; box-shadow: 0 2px 12px rgba(0,0,0,.08); margin-bottom: 14px; }
+  .card h2 { font-size: 14px; color: #374151; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
   .status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
   .dot-green { background: #22c55e; animation: pulse 1.5s infinite; }
   .dot-red   { background: #ef4444; }
   .dot-gray  { background: #9ca3af; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-  .status-text { font-size: 14px; color: #374151; }
-  .coords { font-size: 12px; color: #9ca3af; margin-top: 6px; font-family: monospace; }
-  .order-info { background: #f0fdf4; border-radius: 10px; padding: 14px; margin-top: 8px; }
-  .order-info p { font-size: 13px; color: #374151; margin-bottom: 4px; }
-  .order-info strong { color: #15803d; }
+  .status-text { font-size: 14px; color: #374151; font-weight: 600; }
+  .coords { font-size: 11px; color: #9ca3af; margin-top: 6px; font-family: monospace; }
+
+  .order-info { background: #f0fdf4; border-radius: 10px; padding: 14px; }
+  .order-info .order-num { font-size: 16px; font-weight: 700; color: #15803d; margin-bottom: 4px; }
+  .order-info p { font-size: 13px; color: #374151; margin-bottom: 2px; }
+
+  .dist-bar { margin-top: 12px; }
+  .dist-label { display: flex; justify-content: space-between; font-size: 12px; color: #6b7280; margin-bottom: 4px; }
+  .dist-track { height: 8px; background: #d1fae5; border-radius: 4px; overflow: hidden; }
+  .dist-fill  { height: 100%; background: #16a34a; border-radius: 4px; transition: width .5s; }
+
   .btn { display: block; width: 100%; padding: 16px; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; transition: all .2s; }
-  .btn-start { background: #16a34a; color: #fff; }
-  .btn-start:disabled { background: #d1fae5; color: #6b7280; cursor: default; }
-  .btn-stop  { background: #fee2e2; color: #ef4444; }
-  .log-box { width: 100%; max-width: 400px; background: #fff; border-radius: 12px; padding: 14px; box-shadow: 0 1px 6px rgba(0,0,0,0.06); }
-  .log-box h3 { font-size: 13px; color: #9ca3af; margin-bottom: 8px; }
-  .log-entry { font-size: 12px; color: #6b7280; margin-bottom: 3px; font-family: monospace; }
-  .accuracy-bar { height: 6px; border-radius: 3px; margin-top: 6px; }
-  .error-msg { background: #fee2e2; border-radius: 10px; padding: 12px; font-size: 13px; color: #dc2626; display: none; }
+  .btn-start   { background: #16a34a; color: #fff; }
+  .btn-start:hover { background: #15803d; }
+  .btn-stop    { background: #fee2e2; color: #ef4444; }
+  .btn-arrived {
+    background: #15803d; color: #fff; font-size: 20px; padding: 20px;
+    border-radius: 16px; margin-top: 8px; display: none;
+    animation: glow 1s ease-in-out infinite alternate;
+  }
+  @keyframes glow { from{box-shadow:0 0 8px rgba(21,128,61,.4)} to{box-shadow:0 0 20px rgba(21,128,61,.8)} }
+
+  .error-msg { background: #fee2e2; border-radius: 10px; padding: 12px; font-size: 13px; color: #dc2626; display: none; margin-top: 10px; }
+
+  .log-box { width: 100%; max-width: 400px; background: #fff; border-radius: 12px; padding: 14px; box-shadow: 0 1px 6px rgba(0,0,0,.06); }
+  .log-box h3 { font-size: 12px; color: #9ca3af; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .5px; }
+  .log-entry { font-size: 11px; color: #6b7280; margin-bottom: 3px; font-family: monospace; }
 </style>
 </head>
 <body>
@@ -50,17 +63,24 @@
 <div class="card" id="orderCard" style="display:none">
   <h2>Pedido activo</h2>
   <div class="order-info" id="orderInfo"></div>
+  <div class="dist-bar" id="distBar" style="display:none">
+    <div class="dist-label">
+      <span>Distancia al destino</span>
+      <span id="distText">—</span>
+    </div>
+    <div class="dist-track"><div class="dist-fill" id="distFill" style="width:100%"></div></div>
+  </div>
 </div>
 
 <div class="card">
   <button class="btn btn-start" id="btnStart" onclick="startTracking()">Iniciar seguimiento GPS</button>
-  <div style="height:10px"></div>
-  <button class="btn btn-stop" id="btnStop" onclick="stopTracking()" style="display:none">Detener seguimiento</button>
+  <button class="btn btn-stop"  id="btnStop"  onclick="stopTracking()"  style="display:none">Detener seguimiento</button>
+  <button class="btn btn-arrived" id="btnArrived" onclick="marcarEntregado()">Llegué al destino ✓</button>
   <div class="error-msg" id="errorMsg"></div>
 </div>
 
 <div class="log-box">
-  <h3>Registro de envios</h3>
+  <h3>Registro</h3>
   <div id="logList"><div class="log-entry">—</div></div>
 </div>
 
@@ -68,25 +88,30 @@
 <script>
 const SUPABASE_URL = 'https://zxbdzeggkdrggelxskfu.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4YmR6ZWdna2RyZ2dlbHhza2Z1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Njk2NDAsImV4cCI6MjA5MjU0NTY0MH0.OgSJnFExZEw8wWp1E3qx12eyQ6h9_0-15ZJCnZBaIFA';
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const NOTIFY_URL   = 'https://zxbdzeggkdrggelxskfu.supabase.co/functions/v1/notify-order-status';
+const ARRIVED_DIST = 300; // metros para activar botón "Llegué"
 
-// Lee el order_id desde la URL: rider.html?order=UUID
+const sb      = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const params  = new URLSearchParams(location.search);
 const orderId = params.get('order');
 
-let watchId   = null;
-let sending   = false;
-let sendCount = 0;
+let watchId      = null;
+let sending      = false;
+let sendCount    = 0;
+let destCoords   = null;
+let initialDist  = null;
+let orderData    = null;
+let arrivedDone  = false;
 
 function log(msg) {
   const el = document.getElementById('logList');
   const d  = new Date();
   const ts = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
-  const entry = document.createElement('div');
-  entry.className = 'log-entry';
-  entry.textContent = `[${ts}] ${msg}`;
-  el.prepend(entry);
-  if (el.children.length > 30) el.lastChild.remove();
+  const e  = document.createElement('div');
+  e.className   = 'log-entry';
+  e.textContent = `[${ts}] ${msg}`;
+  el.prepend(e);
+  if (el.children.length > 40) el.lastChild.remove();
 }
 
 function setStatus(type, text) {
@@ -95,52 +120,88 @@ function setStatus(type, text) {
   document.getElementById('statusText').textContent = text;
 }
 
+function haversineM(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2-lat1)*Math.PI/180, dLng = (lng2-lng1)*Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
 async function loadOrder() {
-  if (!orderId) return;
-  const { data } = await sb.from('orders').select('order_number,nombre,apellido,domicilio,ciudad').eq('id', orderId).single();
+  if (!orderId) { log('Sin order_id — modo prueba.'); return; }
+  const { data } = await sb.from('orders')
+    .select('order_number,nombre,apellido,domicilio,ciudad').eq('id', orderId).single();
   if (!data) return;
+  orderData = data;
+
   document.getElementById('orderCard').style.display = 'block';
   document.getElementById('orderInfo').innerHTML = `
-    <p><strong>Pedido #${data.order_number}</strong></p>
+    <div class="order-num">Pedido #${data.order_number}</div>
     <p>${data.nombre} ${data.apellido}</p>
     <p>${[data.domicilio, data.ciudad].filter(Boolean).join(', ')}</p>
   `;
+
+  // Geocodificar destino para medir distancia
+  if (data.domicilio) {
+    const addr = [data.domicilio, data.ciudad || 'Rosario', 'Santa Fe, Argentina'].filter(Boolean).join(', ');
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}&limit=1`,
+        { headers: { 'User-Agent': 'NaturalFunesRider/1.0' } });
+      const j = await r.json();
+      if (j.length) {
+        destCoords = { lat: parseFloat(j[0].lat), lng: parseFloat(j[0].lon) };
+        log(`Destino cargado: ${data.domicilio}`);
+      }
+    } catch (e) { log('No se pudo geocodificar destino.'); }
+  }
+}
+
+function updateDistanceUI(distM) {
+  if (!distM) return;
+  document.getElementById('distBar').style.display = 'block';
+
+  if (!initialDist || distM > initialDist) initialDist = distM;
+  const pct = Math.max(0, Math.min(100, (distM / initialDist) * 100));
+  document.getElementById('distFill').style.width = pct + '%';
+
+  const txt = distM < 1000
+    ? `${Math.round(distM)} m`
+    : `${(distM/1000).toFixed(1)} km`;
+  document.getElementById('distText').textContent = txt;
+
+  // Activa botón "Llegué" cuando está cerca
+  if (distM <= ARRIVED_DIST && !arrivedDone) {
+    document.getElementById('btnArrived').style.display = 'block';
+    setStatus('ok', `A ${Math.round(distM)}m del destino`);
+    log(`Cerca del destino (${Math.round(distM)}m) — botón activado`);
+  }
 }
 
 async function sendPosition(lat, lng, accuracy) {
   if (sending) return;
   sending = true;
   try {
-    const payload = { lat, lng, accuracy, updated_at: new Date().toISOString() };
-    if (orderId) payload.order_id = orderId;
-
     const { error } = await sb.from('rider_positions').upsert(
-      orderId
-        ? { order_id: orderId, ...payload }
-        : { order_id: 'default', ...payload },
+      { order_id: orderId || 'default', lat, lng, accuracy, updated_at: new Date().toISOString() },
       { onConflict: 'order_id' }
     );
     sendCount++;
     if (error) {
-      log('Error: ' + error.message);
-      setStatus('error', 'Error al enviar posicion');
+      log('Error Supabase: ' + error.message);
+      setStatus('error', 'Error al enviar');
     } else {
-      log(`GPS enviado #${sendCount} — ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
       setStatus('ok', 'Transmitiendo en vivo');
       document.getElementById('coords').textContent =
-        `Lat: ${lat.toFixed(6)}  Lng: ${lng.toFixed(6)}  Prec: ±${Math.round(accuracy)}m`;
+        `Lat: ${lat.toFixed(6)}  Lng: ${lng.toFixed(6)}  ±${Math.round(accuracy)}m`;
+      log(`#${sendCount} enviado`);
+
+      if (destCoords) updateDistanceUI(haversineM(lat, lng, destCoords.lat, destCoords.lng));
     }
-  } finally {
-    sending = false;
-  }
+  } finally { sending = false; }
 }
 
 function startTracking() {
-  if (!('geolocation' in navigator)) {
-    showError('Tu navegador no soporta GPS. Usa Chrome en Android.');
-    return;
-  }
-
+  if (!('geolocation' in navigator)) { showError('Tu navegador no soporta GPS.'); return; }
   document.getElementById('btnStart').style.display = 'none';
   document.getElementById('btnStop').style.display  = 'block';
   document.getElementById('errorMsg').style.display = 'none';
@@ -148,32 +209,60 @@ function startTracking() {
   log('Iniciando seguimiento...');
 
   watchId = navigator.geolocation.watchPosition(
-    pos => {
-      sendPosition(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
-    },
+    pos => sendPosition(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy),
     err => {
-      const msgs = {
-        1: 'Permiso de ubicacion denegado. Activalo en configuracion del navegador.',
-        2: 'No se pudo obtener la ubicacion (sin señal).',
-        3: 'Tiempo de espera agotado. Reintentando...',
-      };
-      showError(msgs[err.code] || 'Error GPS: ' + err.message);
+      const msgs = { 1: 'Permiso denegado. Activalo en configuracion del navegador.', 2: 'Sin señal GPS.', 3: 'Tiempo de espera agotado.' };
+      showError(msgs[err.code] || 'Error GPS');
       setStatus('error', 'Error GPS');
-      log('Error GPS: ' + err.message);
+      log('Error: ' + err.message);
     },
     { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
   );
 }
 
 function stopTracking() {
-  if (watchId !== null) {
-    navigator.geolocation.clearWatch(watchId);
-    watchId = null;
-  }
+  if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
   document.getElementById('btnStart').style.display = 'block';
   document.getElementById('btnStop').style.display  = 'none';
+  document.getElementById('btnArrived').style.display = 'none';
   setStatus('gray', 'Seguimiento detenido');
-  log('Seguimiento detenido.');
+  log('Detenido.');
+}
+
+async function marcarEntregado() {
+  if (arrivedDone || !orderId) return;
+  arrivedDone = true;
+  document.getElementById('btnArrived').disabled     = true;
+  document.getElementById('btnArrived').textContent  = 'Marcando...';
+
+  try {
+    // Actualizar estado del pedido
+    await sb.from('orders').update({ status: 'entregado' }).eq('id', orderId);
+
+    // Notificar al cliente por email
+    await fetch(NOTIFY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        record: { id: orderId, status: 'entregado' },
+        old_record: { status: 'en camino' }
+      })
+    });
+
+    // Borrar posición del cadete
+    await sb.from('rider_positions').delete().eq('order_id', orderId);
+
+    stopTracking();
+    document.getElementById('btnArrived').textContent = 'Pedido entregado!';
+    document.getElementById('btnArrived').style.background = '#166534';
+    log('Pedido marcado como entregado.');
+    setStatus('ok', 'Entregado');
+  } catch(e) {
+    log('Error al marcar entregado: ' + e.message);
+    arrivedDone = false;
+    document.getElementById('btnArrived').disabled    = false;
+    document.getElementById('btnArrived').textContent = 'Llegué al destino ✓';
+  }
 }
 
 function showError(msg) {
@@ -183,11 +272,7 @@ function showError(msg) {
 }
 
 loadOrder();
-
-// Si viene con order en URL, mostrar instruccion
-if (!orderId) {
-  log('Sin order_id en URL. Modo prueba libre.');
-}
+log('Listo. Tocá "Iniciar seguimiento GPS" para comenzar.');
 </script>
 </body>
 </html>

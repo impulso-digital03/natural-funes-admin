@@ -10,97 +10,79 @@
   body { font-family: 'Segoe UI', sans-serif; background: #f9fafb; }
 
   .header {
-    background: #15803d;
-    color: #fff;
+    background: #15803d; color: #fff;
     padding: 16px 20px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
   }
   .header h1 { font-size: 18px; font-weight: 700; }
   .header p  { font-size: 12px; opacity: .8; }
 
   #map { width: 100%; height: 52vh; }
 
-  .info-panel {
-    padding: 16px 20px;
-    background: #fff;
-    border-top: 1px solid #e5e7eb;
-  }
+  .info-panel { padding: 16px 20px; background: #fff; border-top: 1px solid #e5e7eb; }
 
   .status-bar {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: #f0fdf4;
-    border-radius: 12px;
-    padding: 12px 16px;
-    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 10px;
+    background: #f0fdf4; border-radius: 12px; padding: 12px 16px; margin-bottom: 14px;
   }
   .pulse-ring {
-    width: 14px; height: 14px; border-radius: 50%;
-    background: #22c55e;
-    position: relative;
-    flex-shrink: 0;
+    width: 14px; height: 14px; border-radius: 50%; background: #9ca3af;
+    position: relative; flex-shrink: 0; transition: background .4s;
   }
-  .pulse-ring::after {
-    content: '';
-    position: absolute;
-    inset: -4px;
-    border-radius: 50%;
-    border: 2px solid #22c55e;
-    animation: ring 1.4s ease-out infinite;
+  .pulse-ring.active { background: #22c55e; }
+  .pulse-ring.active::after {
+    content: ''; position: absolute; inset: -4px; border-radius: 50%;
+    border: 2px solid #22c55e; animation: ring 1.4s ease-out infinite;
   }
+  .pulse-ring.arrived { background: #15803d; }
   @keyframes ring { 0%{transform:scale(1);opacity:.8} 100%{transform:scale(2);opacity:0} }
 
   .status-text h3 { font-size: 14px; color: #15803d; font-weight: 700; }
   .status-text p  { font-size: 12px; color: #6b7280; }
 
   .eta-badge {
-    margin-left: auto;
-    background: #15803d;
-    color: #fff;
-    border-radius: 20px;
-    padding: 6px 14px;
-    font-size: 13px;
-    font-weight: 700;
-    white-space: nowrap;
+    margin-left: auto; background: #15803d; color: #fff;
+    border-radius: 20px; padding: 6px 14px; font-size: 13px; font-weight: 700;
+    white-space: nowrap; transition: all .3s;
   }
+  .eta-badge.arriving { background: #f59e0b; animation: pulse-badge .8s infinite; }
+  @keyframes pulse-badge { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
 
-  .order-card {
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    padding: 14px;
-    margin-bottom: 12px;
+  .arrived-banner {
+    display: none; background: #15803d; color: #fff;
+    border-radius: 12px; padding: 16px; margin-bottom: 14px; text-align: center;
   }
+  .arrived-banner h3 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .arrived-banner p  { font-size: 13px; opacity: .9; }
+
+  .order-card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
   .order-card h4 { font-size: 13px; color: #9ca3af; margin-bottom: 6px; }
   .order-card p  { font-size: 14px; color: #111827; }
 
-  .no-signal {
-    text-align: center;
-    padding: 32px 20px;
-    color: #9ca3af;
-  }
-  .no-signal .icon { font-size: 48px; margin-bottom: 12px; }
-  .no-signal p { font-size: 14px; }
+  .no-signal { text-align: center; padding: 24px 20px; color: #9ca3af; }
+  .no-signal .icon { font-size: 40px; margin-bottom: 8px; }
+  .no-signal p { font-size: 13px; }
 
   .last-update { font-size: 11px; color: #d1d5db; text-align: center; margin-top: 8px; }
+  .eta-source  { font-size: 10px; color: #d1d5db; text-align: center; margin-top: 2px; }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <div>
-    <h1>🌿 Natural Funes</h1>
-    <p>Seguimiento de tu pedido en tiempo real</p>
-  </div>
+  <h1>🌿 Natural Funes</h1>
+  <p>Seguimiento de tu pedido en tiempo real</p>
 </div>
 
 <div id="map"></div>
 
 <div class="info-panel">
+  <div class="arrived-banner" id="arrivedBanner">
+    <h3>Tu pedido llegó!</h3>
+    <p>El cadete está en tu puerta. Gracias por elegirnos!</p>
+  </div>
+
   <div class="status-bar" id="statusBar">
-    <div class="pulse-ring" id="pulseDot" style="background:#9ca3af"></div>
+    <div class="pulse-ring" id="pulseDot"></div>
     <div class="status-text">
       <h3 id="statusTitle">Conectando...</h3>
       <p id="statusSub">Esperando señal del cadete</p>
@@ -115,10 +97,11 @@
 
   <div class="no-signal" id="noSignal">
     <div class="icon">🛵</div>
-    <p>El cadete va en camino.<br>El mapa se actualiza cuando esté cerca.</p>
+    <p>El cadete va en camino.<br>El mapa se actualiza en tiempo real.</p>
   </div>
 
   <div class="last-update" id="lastUpdate"></div>
+  <div class="eta-source" id="etaSource"></div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -126,89 +109,127 @@
 <script>
 const SUPABASE_URL = 'https://zxbdzeggkdrggelxskfu.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4YmR6ZWdna2RyZ2dlbHhza2Z1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5Njk2NDAsImV4cCI6MjA5MjU0NTY0MH0.OgSJnFExZEw8wWp1E3qx12eyQ6h9_0-15ZJCnZBaIFA';
-const STORE_LAT =  -32.940;
-const STORE_LNG =  -60.912;
+const MAPS_KEY   = 'AIzaSyBJuyuzkqqORuwm1VGHu6mWtlsWIvjsZ1k';
+const STORE_LAT  = -32.940;
+const STORE_LNG  = -60.912;
 const STORE_ADDR = 'Av. Fuerza Aérea 2092 Sur, Funes';
 
-const sb       = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-const params   = new URLSearchParams(location.search);
-const orderId  = params.get('order');
+const sb      = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const params  = new URLSearchParams(location.search);
+const orderId = params.get('order');
 
 // ---- Mapa ----
 const map = L.map('map', { zoomControl: true, attributionControl: false });
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-// Ícono tienda
 const storeIcon = L.divIcon({
   html: '<div style="background:#15803d;color:#fff;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 2px 8px rgba(0,0,0,.3)">🌿</div>',
   iconSize: [36,36], iconAnchor: [18,18], className: ''
 });
-// Ícono cadete
 const riderIcon = L.divIcon({
   html: '<div style="background:#f59e0b;color:#fff;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 2px 8px rgba(0,0,0,.3);animation:bob .8s ease-in-out infinite alternate">🛵</div><style>@keyframes bob{from{transform:translateY(0)}to{transform:translateY(-4px)}}</style>',
   iconSize: [40,40], iconAnchor: [20,20], className: ''
 });
-// Ícono destino
 const destIcon = L.divIcon({
   html: '<div style="background:#ef4444;color:#fff;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 2px 8px rgba(0,0,0,.3)">📍</div>',
   iconSize: [36,36], iconAnchor: [18,36], className: ''
 });
 
-const storeMarker = L.marker([STORE_LAT, STORE_LNG], { icon: storeIcon })
-  .addTo(map)
+L.marker([STORE_LAT, STORE_LNG], { icon: storeIcon }).addTo(map)
   .bindPopup('<b>Natural Funes</b><br>' + STORE_ADDR);
 
-let riderMarker = null;
-let destMarker  = null;
-let routeLine   = null;
-let orderData   = null;
-let hasPosition = false;
+let riderMarker    = null;
+let destMarker     = null;
+let routeLine      = null;
+let destCoords     = null;
+let mapsReady      = false;
+let directionsService = null;
+let arrivedShown   = false;
 
 map.setView([STORE_LAT, STORE_LNG], 14);
 
-// ---- Geocodifica dirección del cliente ----
+// ---- Carga Google Maps ----
+function loadGoogleMaps() {
+  return new Promise(resolve => {
+    if (mapsReady) { resolve(); return; }
+    window.__mapsReady = () => { mapsReady = true; directionsService = new google.maps.DirectionsService(); resolve(); };
+    const s = document.createElement('script');
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${MAPS_KEY}&callback=__mapsReady`;
+    document.head.appendChild(s);
+  });
+}
+
+// ---- Geocodifica con Nominatim ----
 async function geocodeAddress(address) {
   try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
-    const r = await fetch(url, { headers: { 'User-Agent': 'NaturalFunesTracking/1.0' } });
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
+      { headers: { 'User-Agent': 'NaturalFunesTracking/1.0' } });
     const j = await r.json();
     if (j.length) return { lat: parseFloat(j[0].lat), lng: parseFloat(j[0].lon) };
   } catch {}
   return null;
 }
 
-// ---- Carga datos del pedido ----
+// ---- ETA con Google Maps Directions ----
+async function getGoogleETA(riderLat, riderLng) {
+  try {
+    await loadGoogleMaps();
+    const result = await new Promise((resolve, reject) => {
+      directionsService.route({
+        origin: new google.maps.LatLng(riderLat, riderLng),
+        destination: new google.maps.LatLng(destCoords.lat, destCoords.lng),
+        travelMode: google.maps.TravelMode.DRIVING,
+        drivingOptions: { departureTime: new Date(), trafficModel: google.maps.TrafficModel.BEST_GUESS }
+      }, (res, status) => status === 'OK' ? resolve(res) : reject(new Error(status)));
+    });
+    const leg = result.routes[0].legs[0];
+    // Preferir duration_in_traffic si está disponible
+    const segundos = (leg.duration_in_traffic || leg.duration).value;
+    const polyline = result.routes[0].overview_path.map(p => [p.lat(), p.lng()]);
+    return { segundos, polyline, source: 'Google Maps (con tráfico)' };
+  } catch {
+    return null;
+  }
+}
+
+// ---- ETA estimado por haversine (fallback) ----
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2-lat1)*Math.PI/180, dLng = (lng2-lng1)*Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ---- Carga pedido ----
 async function loadOrder() {
   if (!orderId) return;
   const { data } = await sb.from('orders')
-    .select('order_number,nombre,apellido,domicilio,ciudad,status')
-    .eq('id', orderId).single();
+    .select('order_number,nombre,apellido,domicilio,ciudad,status').eq('id', orderId).single();
   if (!data) return;
-  orderData = data;
 
   document.getElementById('orderCard').style.display = 'block';
-  document.getElementById('orderDetail').textContent =
-    `Pedido #${data.order_number} — ${data.nombre} ${data.apellido}`;
+  document.getElementById('orderDetail').textContent = `Pedido #${data.order_number} — ${data.nombre} ${data.apellido}`;
 
-  // Geocodificar destino
+  // Si ya está entregado
+  if (data.status === 'entregado') showArrived();
+
   if (data.domicilio) {
-    const addr = [data.domicilio, data.ciudad, 'Funes, Santa Fe, Argentina'].filter(Boolean).join(', ');
+    const addr = [data.domicilio, data.ciudad || 'Rosario', 'Santa Fe, Argentina'].filter(Boolean).join(', ');
     const coords = await geocodeAddress(addr);
     if (coords) {
+      destCoords = coords;
       destMarker = L.marker([coords.lat, coords.lng], { icon: destIcon })
-        .addTo(map)
-        .bindPopup(`<b>Tu domicilio</b><br>${data.domicilio}`);
+        .addTo(map).bindPopup(`<b>Tu domicilio</b><br>${data.domicilio}`);
     }
   }
 }
 
-// ---- Actualiza posición del cadete ----
-function updateRiderPosition(lat, lng, updatedAt) {
-  hasPosition = true;
-  document.getElementById('noSignal').style.display   = 'none';
-  document.getElementById('pulseDot').style.background = '#22c55e';
-  document.getElementById('statusTitle').textContent  = 'Tu pedido está en camino';
-  document.getElementById('statusSub').textContent    = 'Seguimiento GPS activo';
+// ---- Actualiza mapa con posición del cadete ----
+async function updateRiderPosition(lat, lng, updatedAt) {
+  document.getElementById('noSignal').style.display = 'none';
+  document.getElementById('pulseDot').classList.add('active');
+  document.getElementById('statusTitle').textContent = 'Tu pedido está en camino';
+  document.getElementById('statusSub').textContent   = 'Seguimiento GPS activo';
 
   if (!riderMarker) {
     riderMarker = L.marker([lat, lng], { icon: riderIcon }).addTo(map).bindPopup('🛵 Cadete');
@@ -216,67 +237,100 @@ function updateRiderPosition(lat, lng, updatedAt) {
     riderMarker.setLatLng([lat, lng]);
   }
 
-  // Calcula ETA aproximado con distancia haversine
-  if (destMarker) {
-    const dest = destMarker.getLatLng();
-    const dist = haversine(lat, lng, dest.lat, dest.lng);
-    const minutos = Math.round((dist / 30) * 60); // 30 km/h promedio ciudad
-    const eta = new Date(Date.now() + minutos * 60000);
-    const hhmm = `${String(eta.getHours()).padStart(2,'0')}:${String(eta.getMinutes()).padStart(2,'0')}`;
-    const badge = document.getElementById('etaBadge');
-    badge.style.display = 'block';
-    badge.textContent   = minutos <= 2 ? '¡Llegando!' : `~${hhmm} (${minutos} min)`;
+  const badge = document.getElementById('etaBadge');
+  badge.style.display = 'block';
 
-    // Línea de ruta simple
-    const bounds = [[lat, lng], [dest.lat, dest.lng]];
-    if (routeLine) map.removeLayer(routeLine);
-    routeLine = L.polyline([[lat,lng],[dest.lat,dest.lng]], {
-      color: '#15803d', weight: 3, dashArray: '8 6', opacity: .7
-    }).addTo(map);
-    map.fitBounds(bounds, { padding: [60, 60] });
+  if (destCoords) {
+    const distKm = haversine(lat, lng, destCoords.lat, destCoords.lng);
+    const distM  = distKm * 1000;
+
+    // Detección de llegada
+    if (distM < 150 && !arrivedShown) showArrived();
+
+    // ETA con Google Maps (async, no bloquea el render)
+    getGoogleETA(lat, lng).then(result => {
+      if (result) {
+        const minutos = Math.round(result.segundos / 60);
+        const eta = new Date(Date.now() + result.segundos * 1000);
+        const hhmm = `${String(eta.getHours()).padStart(2,'0')}:${String(eta.getMinutes()).padStart(2,'0')}`;
+        badge.textContent = minutos <= 1 ? 'Llegando!' : `~${hhmm} (${minutos} min)`;
+        badge.className   = 'eta-badge' + (minutos <= 3 ? ' arriving' : '');
+        document.getElementById('etaSource').textContent = result.source;
+
+        // Dibuja ruta real
+        if (routeLine) map.removeLayer(routeLine);
+        routeLine = L.polyline(result.polyline, { color: '#15803d', weight: 4, opacity: .8 }).addTo(map);
+      } else {
+        // Fallback haversine
+        const minutos = Math.round((distKm / 30) * 60);
+        const eta = new Date(Date.now() + minutos * 60000);
+        const hhmm = `${String(eta.getHours()).padStart(2,'0')}:${String(eta.getMinutes()).padStart(2,'0')}`;
+        badge.textContent = minutos <= 1 ? 'Llegando!' : `~${hhmm} (${minutos} min)`;
+        badge.className   = 'eta-badge' + (minutos <= 3 ? ' arriving' : '');
+        document.getElementById('etaSource').textContent = 'Estimado por distancia';
+
+        if (routeLine) map.removeLayer(routeLine);
+        routeLine = L.polyline([[lat,lng],[destCoords.lat,destCoords.lng]], {
+          color: '#15803d', weight: 3, dashArray: '8 6', opacity: .7
+        }).addTo(map);
+      }
+      map.fitBounds([[lat,lng],[destCoords.lat,destCoords.lng]], { padding: [60,60] });
+    });
   } else {
+    badge.textContent = 'En camino';
     map.setView([lat, lng], 15);
   }
 
-  // Hora de última actualización
   const d = new Date(updatedAt || Date.now());
   document.getElementById('lastUpdate').textContent =
     `Última actualización: ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
 }
 
-function haversine(lat1, lng1, lat2, lng2) {
-  const R = 6371;
-  const dLat = (lat2-lat1) * Math.PI/180;
-  const dLng = (lng2-lng1) * Math.PI/180;
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+function showArrived() {
+  if (arrivedShown) return;
+  arrivedShown = true;
+  document.getElementById('arrivedBanner').style.display = 'block';
+  document.getElementById('statusBar').style.display     = 'none';
+  document.getElementById('pulseDot').classList.remove('active');
+  document.getElementById('pulseDot').classList.add('arrived');
+  if (riderMarker) {
+    riderMarker.setIcon(L.divIcon({
+      html: '<div style="background:#15803d;color:#fff;border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 2px 12px rgba(0,0,0,.4)">✓</div>',
+      iconSize: [44,44], iconAnchor: [22,22], className: ''
+    }));
+  }
 }
 
 // ---- Suscripción Realtime ----
 async function subscribeToRider() {
-  const targetOrderId = orderId || 'default';
+  const targetId = orderId || 'default';
 
-  // Carga posición actual primero
-  const { data } = await sb.from('rider_positions')
-    .select('*').eq('order_id', targetOrderId).single();
+  const { data } = await sb.from('rider_positions').select('*').eq('order_id', targetId).single();
   if (data) updateRiderPosition(data.lat, data.lng, data.updated_at);
 
-  // Luego escucha cambios en tiempo real
   sb.channel('rider-pos')
     .on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'rider_positions',
-      filter: `order_id=eq.${targetOrderId}`,
+      event: '*', schema: 'public', table: 'rider_positions',
+      filter: `order_id=eq.${targetId}`,
     }, payload => {
       const d = payload.new;
-      if (d && d.lat && d.lng) updateRiderPosition(d.lat, d.lng, d.updated_at);
+      if (d?.lat && d?.lng) updateRiderPosition(d.lat, d.lng, d.updated_at);
     })
     .subscribe(status => {
-      if (status === 'SUBSCRIBED') {
-        document.getElementById('statusSub').textContent = 'Conectado — esperando señal';
-      }
+      if (status === 'SUBSCRIBED') document.getElementById('statusSub').textContent = 'Conectado — esperando señal';
     });
+
+  // Escucha cambio de status del pedido a "entregado"
+  if (orderId) {
+    sb.channel('order-status')
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'orders',
+        filter: `id=eq.${orderId}`,
+      }, payload => {
+        if (payload.new?.status === 'entregado') showArrived();
+      })
+      .subscribe();
+  }
 }
 
 loadOrder();
