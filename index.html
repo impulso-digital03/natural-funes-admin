@@ -654,7 +654,7 @@ async function changeStatus(selectEl) {
   // Si pasa a "en camino": links de rider + tracking + WhatsApp al cliente
   if (newStatus === 'en camino') {
     const orderNum = data.order_number || data.id.slice(0,6);
-    const base = location.origin;
+    const base = window.location.protocol + '//' + window.location.host;
     const riderLink    = `${base}/rider.html?order=${data.id}`;
     const trackingLink = `${base}/tracking.html?order=${data.id}`;
 
