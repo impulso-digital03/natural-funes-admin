@@ -214,7 +214,8 @@ async function loadOrder() {
   if (data.status === 'entregado') showArrived();
 
   if (data.domicilio) {
-    const addr = [data.domicilio, data.ciudad || 'Rosario', 'Santa Fe, Argentina'].filter(Boolean).join(', ');
+    const ciudad = data.ciudad || 'Funes';
+    const addr = `${data.domicilio}, ${ciudad}, Santa Fe, Argentina`;
     const coords = await geocodeAddress(addr);
     if (coords) {
       destCoords = coords;
