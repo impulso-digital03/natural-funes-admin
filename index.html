@@ -657,13 +657,78 @@ async function changeStatus(selectEl) {
     const base = window.location.protocol + '//' + window.location.host;
     const riderLink    = `${base}/rider.html?order=${data.id}`;
     const trackingLink = `${base}/tracking.html?order=${data.id}`;
-
-    // Mostrar modal con los dos links
     abrirModalEnCamino(data, orderNum, riderLink, trackingLink);
+  }
+
+  // Si pasa a "entregado": generar comprobante automáticamente
+  if (newStatus === 'entregado') {
+    await generarComprobanteDesdeOrden(data);
   }
 
   // Re-render if needed (re-fetch to keep stats accurate)
   renderPedidos();
+}
+
+// ── Auto-comprobante desde pedido entregado ──────────────
+async function generarComprobanteDesdeOrden(order) {
+  try {
+    // Buscar items del pedido
+    const { data: orderItems } = await sb
+      .from('order_items')
+      .select('*')
+      .eq('order_id', order.id);
+
+    const items = (orderItems || []).map(it => ({
+      desc: it.product_name || it.nombre || 'Producto',
+      qty:  it.quantity || it.cantidad || 1,
+      price: it.unit_price || it.precio_unitario || (it.subtotal / (it.quantity || 1)) || 0,
+    }));
+
+    // Si no hay items, crear uno genérico con el total
+    if (!items.length) {
+      items.push({ desc: `Pedido #${order.order_number}`, qty: 1, price: Number(order.total || 0) });
+    }
+
+    const subtotal = items.reduce((s, it) => s + it.qty * it.price, 0);
+    const metodoPago = {
+      mercadopago: 'mercadopago',
+      transferencia: 'transferencia',
+      tarjeta: 'tarjeta',
+      efectivo: 'efectivo',
+    }[order.payment_method] || order.payment_method || 'efectivo';
+
+    const { data, error } = await sb.from('comprobantes').insert({
+      tipo:             'remito',
+      fecha:            new Date().toISOString().slice(0, 10),
+      cliente_nombre:   `${order.nombre || ''} ${order.apellido || ''}`.trim() || 'Cliente',
+      cliente_direccion: [order.domicilio, order.ciudad].filter(Boolean).join(', ') || null,
+      metodo_pago:      metodoPago,
+      items,
+      subtotal,
+      iva:              0,
+      total:            subtotal,
+      order_id:         order.id,
+      order_number:     order.order_number,
+      origen:           'pedido',
+      notas:            order.notes || null,
+    }).select('numero').single();
+
+    if (error) throw error;
+
+    // Registrar en caja
+    await sb.from('caja_movimientos').insert({
+      fecha:       new Date().toISOString().slice(0, 10),
+      tipo:        'venta',
+      concepto:    `Pedido #${order.order_number} — ${order.nombre || ''}`,
+      metodo_pago: metodoPago,
+      monto:       subtotal,
+    });
+
+    toast(`✅ Comprobante N°${String(data.numero).padStart(4,'0')} generado automáticamente`);
+  } catch(e) {
+    console.warn('Error generando comprobante:', e);
+    toast('Pedido entregado (comprobante pendiente)', 'warn');
+  }
 }
 
 // ── Order items modal ────────────────────────────────────
