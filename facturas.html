@@ -128,9 +128,12 @@ body{font-family:'Segoe UI',sans-serif;background:#f8fafc;color:#1e293b;min-heig
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
         <div>
           <div class="card-title" style="margin:0">🔒 Cierre de caja</div>
-          <p style="font-size:12px;color:#94a3b8;margin-top:4px">Generá el resumen del día en PDF</p>
+          <p style="font-size:12px;color:#94a3b8;margin-top:4px" id="carpeta-status">Generá el resumen del día en PDF</p>
         </div>
-        <button class="btn btn-primary" onclick="cerrarCaja()">📄 Generar cierre de caja</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-gray btn-sm" id="btn-carpeta" onclick="elegirCarpetaCierres()" style="display:none">📁 Elegir carpeta</button>
+          <button class="btn btn-primary" onclick="cerrarCaja()">📄 Generar cierre de caja</button>
+        </div>
       </div>
     </div>
   </div>
@@ -379,6 +382,47 @@ async function loadCaja() {
   }
 }
 
+// ── Carpeta persistente para cierres de caja ──────────────
+let carpetaCierres = null;
+
+async function elegirCarpetaCierres() {
+  try {
+    carpetaCierres = await window.showDirectoryPicker({ mode: 'readwrite', startIn: 'documents' });
+    localStorage.setItem('carpeta_cierres_ok', '1');
+    toast('✅ Carpeta guardada — los cierres se guardarán ahí automáticamente');
+  } catch(e) {
+    if (e.name !== 'AbortError') toast('No se pudo acceder a la carpeta', 'error');
+  }
+}
+
+async function guardarPDFEnCarpeta(pdfBytes, nombreArchivo) {
+  try {
+    // Pedir carpeta si no está seleccionada
+    if (!carpetaCierres) {
+      toast('Elegí la carpeta donde guardar los cierres de caja...', 'warn');
+      await elegirCarpetaCierres();
+      if (!carpetaCierres) return false; // canceló
+    }
+    const fileHandle = await carpetaCierres.getFileHandle(nombreArchivo, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(pdfBytes);
+    await writable.close();
+    return true;
+  } catch(e) {
+    // Si el handle expiró (nueva sesión), pedir carpeta de nuevo
+    if (e.name === 'NotAllowedError' || e.name === 'InvalidStateError') {
+      carpetaCierres = null;
+      toast('Elegí la carpeta nuevamente (sesión reiniciada)...', 'warn');
+      await elegirCarpetaCierres();
+      if (!carpetaCierres) return false;
+      return guardarPDFEnCarpeta(pdfBytes, nombreArchivo);
+    }
+    return false;
+  }
+}
+
+const fileSystemSupported = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
+
 async function cerrarCaja() {
   const fechaHoy = hoy.toISOString().slice(0,10);
   const [{data:ventas},{data:gastos}] = await Promise.all([
@@ -419,8 +463,26 @@ async function cerrarCaja() {
     const byM={};ventas.forEach(v=>{const m=v.metodo_pago||'otro';byM[m]=(byM[m]||0)+Number(v.total||0);});
     Object.entries(byM).forEach(([m,t])=>addRow(m.charAt(0).toUpperCase()+m.slice(1),'$'+fmt(t)));
   }
-  doc.save(`cierre_caja_${fechaHoy}.pdf`);
-  toast('Cierre de caja generado');
+  // Nombre dinámico con fecha real: cierre_caja_20_06_2026.pdf
+  const [anio, mes, dia] = fechaHoy.split('-');
+  const nombreArchivo = `cierre_caja_${dia}_${mes}_${anio}.pdf`;
+
+  if (fileSystemSupported) {
+    // Guardar directo en carpeta elegida
+    const pdfBytes = doc.output('arraybuffer');
+    const guardado = await guardarPDFEnCarpeta(pdfBytes, nombreArchivo);
+    if (guardado) {
+      toast(`✅ Guardado como "${nombreArchivo}" en tu carpeta de cierres`);
+    } else {
+      // Fallback: descargar normal si canceló carpeta
+      doc.save(nombreArchivo);
+      toast('PDF descargado — elegí una carpeta para guardar automáticamente');
+    }
+  } else {
+    // Safari / celular: descarga normal
+    doc.save(nombreArchivo);
+    toast(`PDF guardado como "${nombreArchivo}"`);
+  }
 }
 
 // ══════════════════════════════════════════
@@ -741,6 +803,17 @@ function renderHistorial(list){
 
 initEmitir();
 loadCaja();
+
+// Mostrar botón carpeta solo si el navegador lo soporta (Chrome/Edge)
+if (fileSystemSupported) {
+  document.getElementById('btn-carpeta').style.display = 'inline-flex';
+  if (localStorage.getItem('carpeta_cierres_ok')) {
+    document.getElementById('carpeta-status').textContent = '📁 Carpeta configurada — los cierres se guardan automáticamente';
+    document.getElementById('carpeta-status').style.color = '#16a34a';
+  } else {
+    document.getElementById('carpeta-status').textContent = 'Elegí una carpeta para guardar los cierres automáticamente';
+  }
+}
 </script>
 </body>
 </html>
