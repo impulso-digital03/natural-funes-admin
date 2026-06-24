@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRM & Reportes – Impulso Digital</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',sans-serif;background:#f8fafc;color:#1e293b;min-height:100vh}
+.header{background:#1e293b;color:#fff;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:18px;font-weight:700}
+.header p{font-size:12px;opacity:.6;margin-top:2px}
+.tabs{display:flex;background:#fff;border-bottom:2px solid #e2e8f0;padding:0 24px;overflow-x:auto}
+.tab-btn{padding:14px 18px;border:none;background:none;font-size:13px;font-weight:600;color:#64748b;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:all .2s}
+.tab-btn.active{color:#2563eb;border-bottom-color:#2563eb}
+.content{padding:24px;max-width:1100px;margin:0 auto}
+.hidden{display:none}
+.card{background:#fff;border-radius:12px;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:20px}
+.card-title{font-size:15px;font-weight:700;margin-bottom:16px}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:20px}
+.stat{background:#fff;border-radius:12px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.06);text-align:center}
+.stat .val{font-size:22px;font-weight:800;color:#1e293b}
+.stat .lbl{font-size:12px;color:#64748b;margin-top:4px}
+.stat.green .val{color:#16a34a}
+.stat.blue .val{color:#2563eb}
+.stat.orange .val{color:#ea580c}
+.stat.red .val{color:#dc2626}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.badge-green{background:#dcfce7;color:#15803d}
+.badge-yellow{background:#fef9c3;color:#854d0e}
+.badge-red{background:#fee2e2;color:#dc2626}
+.badge-blue{background:#dbeafe;color:#1d4ed8}
+.badge-gray{background:#f1f5f9;color:#475569}
+.table{width:100%;border-collapse:collapse}
+.table th{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;padding:10px 12px;border-bottom:2px solid #e2e8f0;text-align:left;background:#f8fafc}
+.table td{padding:11px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;vertical-align:middle}
+.table tr:hover td{background:#f8fafc}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
+.btn-primary{background:#2563eb;color:#fff}.btn-primary:hover{background:#1d4ed8}
+.btn-green{background:#16a34a;color:#fff}.btn-green:hover{background:#15803d}
+.btn-gray{background:#f1f5f9;color:#475569}.btn-gray:hover{background:#e2e8f0}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-wa{background:#25d366;color:#fff}.btn-wa:hover{background:#1ebe57}
+.input{width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px}
+.input:focus{outline:none;border-color:#2563eb}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:600px){.form-row,.form-row-3{grid-template-columns:1fr}}
+.form-group label{display:block;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:4px;letter-spacing:.4px}
+.form-group input,.form-group select{width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:#2563eb}
+/* Alerta stock */
+.alert-bar{background:#fef3c7;border:1.5px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;color:#92400e}
+.alert-bar.critical{background:#fee2e2;border-color:#ef4444;color:#991b1b}
+/* Reporte */
+.reporte-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+@media(max-width:600px){.reporte-grid{grid-template-columns:1fr}}
+.reporte-card{background:#f8fafc;border-radius:10px;padding:16px}
+.reporte-card h3{font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:10px}
+.metodo-row{display:flex;justify-content:space-between;padding:6px 0;font-size:14px;border-bottom:1px solid #e2e8f0}
+.metodo-row:last-child{border:none}
+/* Gráfico de barras simple */
+.bar-chart{margin-top:8px}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.bar-label{font-size:11px;color:#64748b;width:30px;text-align:right}
+.bar-track{flex:1;height:10px;background:#e2e8f0;border-radius:5px;overflow:hidden}
+.bar-fill{height:100%;background:#2563eb;border-radius:5px;transition:width .5s}
+.bar-val{font-size:11px;color:#475569;width:60px}
+/* Toast */
+.toast{position:fixed;bottom:24px;right:24px;background:#1e293b;color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;font-weight:600;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+.empty{text-align:center;padding:40px;color:#94a3b8}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* Actividad cliente */
+.activo-hoy{border-left:3px solid #16a34a}
+.activo-semana{border-left:3px solid #2563eb}
+.activo-mes{border-left:3px solid #f59e0b}
+.inactivo{border-left:3px solid #ef4444}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>📊 CRM & Reportes</h1>
+    <p id="header-sub">Clientes, stock y análisis del negocio</p>
+  </div>
+  <a href="/index.html" style="color:#94a3b8;font-size:13px;text-decoration:none">← Admin</a>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('clientes',this)">👥 Clientes</button>
+  <button class="tab-btn" onclick="switchTab('stock',this)">📦 Stock</button>
+  <button class="tab-btn" onclick="switchTab('reportes',this)">📈 Reportes</button>
+  <button class="tab-btn" onclick="switchTab('empleados',this)">👔 Empleados</button>
+</div>
+
+<div class="content">
+
+  <!-- ══════════════ CLIENTES / CRM ══════════════ -->
+  <div id="tab-clientes">
+    <div class="stats-grid" id="crm-stats">
+      <div class="stat blue"><div class="val" id="s-total-clientes">—</div><div class="lbl">Clientes únicos</div></div>
+      <div class="stat green"><div class="val" id="s-activos">—</div><div class="lbl">Activos este mes</div></div>
+      <div class="stat orange"><div class="val" id="s-inactivos">—</div><div class="lbl">Sin comprar +30 días</div></div>
+      <div class="stat"><div class="val" id="s-ticket">—</div><div class="lbl">Ticket promedio</div></div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <div class="card-title" style="margin:0">👥 Todos los clientes</div>
+        <input class="input" style="width:220px" placeholder="Buscar por nombre o teléfono..." oninput="filtrarClientes(this.value)">
+      </div>
+      <div id="clientes-list"><div class="empty">Cargando clientes...</div></div>
+    </div>
+  </div>
+
+  <!-- ══════════════ STOCK ══════════════ -->
+  <div id="tab-stock" class="hidden">
+    <div id="alertas-stock"></div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <div class="card-title" style="margin:0">📦 Stock de productos</div>
+        <button class="btn btn-primary btn-sm" onclick="abrirModalStock()">+ Actualizar stock</button>
+      </div>
+      <div id="stock-list"><div class="empty">Cargando...</div></div>
+    </div>
+  </div>
+
+  <!-- ══════════════ REPORTES ══════════════ -->
+  <div id="tab-reportes" class="hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:20px">
+      <div>
+        <select class="input" id="periodo-select" style="width:160px" onchange="loadReporte(this.value)">
+          <!-- generado por JS -->
+        </select>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-gray btn-sm" onclick="generarReporteAhora()">🔄 Generar ahora</button>
+        <button class="btn btn-primary btn-sm" onclick="exportarReporte()">📄 PDF</button>
+      </div>
+    </div>
+
+    <div id="reporte-content"><div class="empty"><div style="font-size:40px;margin-bottom:12px">📈</div><p>Seleccioná un período para ver el reporte</p></div></div>
+  </div>
+
+  <!-- ══════════════ EMPLEADOS ══════════════ -->
+  <div id="tab-empleados" class="hidden">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div class="card-title" style="margin:0">👔 Empleados</div>
+        <button class="btn btn-primary btn-sm" onclick="abrirModalEmpleado()">+ Agregar empleado</button>
+      </div>
+      <div id="empleados-list"><div class="empty">Cargando...</div></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal stock -->
+<div id="modal-stock" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:16px;padding:24px;width:90%;max-width:420px">
+    <h3 style="margin-bottom:16px;font-size:16px">📦 Actualizar stock</h3>
+    <div id="modal-stock-body"></div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-green" onclick="guardarStock()" style="flex:1">Guardar</button>
+      <button class="btn btn-gray" onclick="cerrarModal('modal-stock')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal empleado -->
+<div id="modal-empleado" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:16px;padding:24px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto">
+    <h3 style="margin-bottom:16px;font-size:16px" id="modal-emp-title">+ Agregar empleado</h3>
+    <div class="form-row" style="margin-bottom:12px">
+      <div class="form-group"><label>Nombre</label><input id="emp-nombre"></div>
+      <div class="form-group"><label>Apellido</label><input id="emp-apellido"></div>
+    </div>
+    <div class="form-row" style="margin-bottom:12px">
+      <div class="form-group"><label>DNI</label><input id="emp-dni"></div>
+      <div class="form-group"><label>Teléfono</label><input id="emp-tel"></div>
+    </div>
+    <div class="form-row" style="margin-bottom:12px">
+      <div class="form-group"><label>Puesto</label><input id="emp-puesto" placeholder="Ej: Cadete, Cajero"></div>
+      <div class="form-group"><label>Fecha ingreso</label><input type="date" id="emp-ingreso"></div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px"><label>Sueldo base ($)</label><input type="number" id="emp-sueldo"></div>
+    <div class="form-group" style="margin-bottom:16px"><label>Notas</label><input id="emp-notas" placeholder="Opcional"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-green" onclick="guardarEmpleado()" style="flex:1">Guardar</button>
+      <button class="btn btn-gray" onclick="cerrarModal('modal-empleado')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="config.js"></script>
+<script>
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const fmt = n => Number(n||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtK = n => n >= 1000 ? '$'+Math.round(n/1000)+'k' : '$'+Math.round(n);
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+function toast(msg, type='ok'){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.style.background=type==='error'?'#dc2626':type==='warn'?'#d97706':'#1e293b';
+  el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),3500);
+}
+
+function switchTab(tab, btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  ['clientes','stock','reportes','empleados'].forEach(t=>
+    document.getElementById('tab-'+t).classList.toggle('hidden',t!==tab));
+  if(tab==='clientes') loadClientes();
+  if(tab==='stock') loadStock();
+  if(tab==='reportes') loadPeriodos();
+  if(tab==='empleados') loadEmpleados();
+}
+
+function cerrarModal(id){document.getElementById(id).style.display='none';}
+function abrirModal(id){document.getElementById(id).style.display='flex';}
+
+// ══════════════════════════════════════
+//  CLIENTES / CRM
+// ══════════════════════════════════════
+let todosClientes = [];
+
+async function loadClientes(){
+  const {data} = await sb.from('crm_clientes').select('*');
+  todosClientes = data || [];
+  renderCrmStats(todosClientes);
+  renderClientes(todosClientes);
+}
+
+function renderCrmStats(list){
+  const ahora = new Date();
+  const hace30 = new Date(ahora - 30*24*60*60*1000).toISOString();
+  const activos = list.filter(c => c.ultimo_pedido > hace30).length;
+  const inactivos = list.filter(c => c.ultimo_pedido <= hace30).length;
+  const ticket = list.length ? list.reduce((s,c)=>s+Number(c.ticket_promedio||0),0)/list.length : 0;
+  document.getElementById('s-total-clientes').textContent = list.length;
+  document.getElementById('s-activos').textContent = activos;
+  document.getElementById('s-inactivos').textContent = inactivos;
+  document.getElementById('s-ticket').textContent = fmtK(ticket);
+}
+
+function filtrarClientes(q){
+  const f = q.toLowerCase();
+  renderClientes(todosClientes.filter(c =>
+    !q || (c.nombre_completo||'').toLowerCase().includes(f) || (c.telefono||'').includes(f)
+  ));
+}
+
+function actividadCliente(ultimo){
+  if(!ultimo) return {clase:'inactivo',badge:'badge-gray',texto:'Sin pedidos'};
+  const dias = Math.floor((Date.now()-new Date(ultimo))/(1000*60*60*24));
+  if(dias <= 1)  return {clase:'activo-hoy',badge:'badge-green',texto:'Hoy'};
+  if(dias <= 7)  return {clase:'activo-semana',badge:'badge-green',texto:`Hace ${dias}d`};
+  if(dias <= 30) return {clase:'activo-mes',badge:'badge-blue',texto:`Hace ${dias}d`};
+  return {clase:'inactivo',badge:'badge-red',texto:`+${dias}d sin comprar`};
+}
+
+function renderClientes(list){
+  const el = document.getElementById('clientes-list');
+  if(!list.length){el.innerHTML='<div class="empty">No se encontraron clientes</div>';return;}
+  el.innerHTML=`<table class="table">
+    <thead><tr><th>Cliente</th><th>Tel.</th><th>Pedidos</th><th>Total gastado</th><th>Ticket prom.</th><th>Último pedido</th><th>Estado</th><th></th></tr></thead>
+    <tbody>${list.map(c=>{
+      const act = actividadCliente(c.ultimo_pedido);
+      return `<tr class="${act.clase}">
+        <td><strong>${esc(c.nombre_completo||'Sin nombre')}</strong></td>
+        <td>${esc(c.telefono||'—')}</td>
+        <td style="text-align:center"><strong>${c.total_pedidos||0}</strong></td>
+        <td style="font-weight:700;color:#16a34a">$${fmt(c.total_gastado)}</td>
+        <td>$${fmt(c.ticket_promedio)}</td>
+        <td style="font-size:12px;color:#64748b">${c.ultimo_pedido?new Date(c.ultimo_pedido).toLocaleDateString('es-AR'):'—'}</td>
+        <td><span class="badge ${act.badge}">${act.texto}</span></td>
+        <td>
+          ${c.telefono?`<a href="https://wa.me/549${c.telefono.replace(/\D/g,'')}" target="_blank" class="btn btn-wa btn-sm">💬 WA</a>`:''}
+        </td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+// ══════════════════════════════════════
+//  STOCK
+// ══════════════════════════════════════
+let productosStock = [];
+
+async function loadStock(){
+  const {data} = await sb.from('products').select('id,name,price,stock_actual,stock_minimo,category').order('name');
+  productosStock = data || [];
+  renderAlertas(productosStock);
+  renderStock(productosStock);
+}
+
+function renderAlertas(list){
+  const criticos = list.filter(p => (p.stock_actual||0) === 0);
+  const bajos = list.filter(p => (p.stock_actual||0) > 0 && (p.stock_actual||0) <= (p.stock_minimo||5));
+  const el = document.getElementById('alertas-stock');
+  let html = '';
+  if(criticos.length) html += `<div class="alert-bar critical">⛔ SIN STOCK: ${criticos.map(p=>esc(p.name)).join(', ')}</div>`;
+  if(bajos.length) html += `<div class="alert-bar">⚠️ Stock bajo: ${bajos.map(p=>`${esc(p.name)} (${p.stock_actual} u.)`).join(', ')}</div>`;
+  el.innerHTML = html;
+}
+
+function renderStock(list){
+  const el = document.getElementById('stock-list');
+  if(!list.length){el.innerHTML='<div class="empty">No hay productos</div>';return;}
+  el.innerHTML=`<table class="table">
+    <thead><tr><th>Producto</th><th>Categoría</th><th>Precio</th><th>Stock actual</th><th>Stock mínimo</th><th>Estado</th><th></th></tr></thead>
+    <tbody>${list.map(p=>{
+      const act = p.stock_actual||0, min = p.stock_minimo||5;
+      const estado = act === 0
+        ? '<span class="badge badge-red">Sin stock</span>'
+        : act <= min
+        ? '<span class="badge" style="background:#fef3c7;color:#92400e">Stock bajo</span>'
+        : '<span class="badge badge-green">OK</span>';
+      return `<tr>
+        <td><strong>${esc(p.name)}</strong></td>
+        <td>${esc(p.category||'—')}</td>
+        <td>$${fmt(p.price)}</td>
+        <td style="font-weight:700;color:${act===0?'#dc2626':act<=min?'#d97706':'#16a34a'};text-align:center">${act}</td>
+        <td style="text-align:center;color:#94a3b8">${min}</td>
+        <td>${estado}</td>
+        <td><button class="btn btn-gray btn-sm" onclick="editarStock('${p.id}','${esc(p.name)}',${act},${min})">✏️</button></td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+let stockEditId = null;
+function abrirModalStock(){
+  // Para actualizar todos
+  document.getElementById('modal-stock-body').innerHTML = `
+    <p style="font-size:13px;color:#64748b;margin-bottom:12px">Actualizá el stock de un producto específico:</p>
+    <div class="form-group" style="margin-bottom:10px">
+      <label>Producto</label>
+      <select id="stock-prod-sel" class="input">
+        ${productosStock.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Stock actual</label><input type="number" id="stock-nuevo" min="0" placeholder="0"></div>
+      <div class="form-group"><label>Stock mínimo</label><input type="number" id="stock-min-nuevo" min="0" placeholder="5"></div>
+    </div>`;
+  abrirModal('modal-stock');
+}
+
+function editarStock(id, nombre, actual, minimo){
+  stockEditId = id;
+  document.getElementById('modal-stock-body').innerHTML = `
+    <p style="font-weight:600;margin-bottom:12px">${esc(nombre)}</p>
+    <div class="form-row">
+      <div class="form-group"><label>Stock actual</label><input type="number" id="stock-nuevo" min="0" value="${actual}"></div>
+      <div class="form-group"><label>Stock mínimo</label><input type="number" id="stock-min-nuevo" min="0" value="${minimo}"></div>
+    </div>`;
+  abrirModal('modal-stock');
+}
+
+async function guardarStock(){
+  const id = stockEditId || document.getElementById('stock-prod-sel')?.value;
+  const actual = parseInt(document.getElementById('stock-nuevo').value)||0;
+  const minimo = parseInt(document.getElementById('stock-min-nuevo').value)||5;
+  if(!id){toast('Seleccioná un producto','error');return;}
+  const {error} = await sb.from('products').update({stock_actual:actual,stock_minimo:minimo}).eq('id',id);
+  if(error){toast('Error: '+error.message,'error');return;}
+  cerrarModal('modal-stock'); stockEditId=null;
+  toast('Stock actualizado'); loadStock();
+}
+
+// ══════════════════════════════════════
+//  REPORTES
+// ══════════════════════════════════════
+function loadPeriodos(){
+  const sel = document.getElementById('periodo-select');
+  const ahora = new Date();
+  const options = [];
+  for(let i=0; i<12; i++){
+    const d = new Date(ahora.getFullYear(), ahora.getMonth()-i, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const lbl = d.toLocaleDateString('es-AR',{year:'numeric',month:'long'});
+    options.push(`<option value="${val}">${lbl}</option>`);
+  }
+  sel.innerHTML = options.join('');
+  loadReporte(sel.value);
+}
+
+async function generarReporteAhora(){
+  const periodo = document.getElementById('periodo-select').value;
+  toast('Generando reporte...');
+  try {
+    const res = await fetch(SUPABASE_URL+'/functions/v1/reporte-mensual', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY},
+      body: JSON.stringify({periodo})
+    });
+    const j = await res.json();
+    if(j.success){ toast('Reporte generado'); loadReporte(periodo); }
+    else throw new Error(j.error);
+  } catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+async function loadReporte(periodo){
+  const {data} = await sb.from('reportes_mensuales').select('*').eq('periodo',periodo).maybeSingle();
+  const el = document.getElementById('reporte-content');
+  if(!data){
+    el.innerHTML=`<div class="empty">
+      <div style="font-size:40px;margin-bottom:12px">📊</div>
+      <p>No hay reporte para este período</p>
+      <button class="btn btn-primary" style="margin-top:12px" onclick="generarReporteAhora()">🔄 Generar ahora</button>
+    </div>`;
+    return;
+  }
+  const [y,m] = periodo.split('-');
+  const mes = new Date(y,m-1,1).toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+  const metodos = data.metodos_pago || {};
+  const maxMetodo = Math.max(...Object.values(metodos).map(Number), 1);
+  const neto = Number(data.resultado_neto||0);
+  const metodosLabels = {efectivo:'💵 Efectivo',transferencia:'🏦 Transf.',mercadopago:'📱 MP',tarjeta:'💳 Tarjeta',otro:'📌 Otro'};
+
+  el.innerHTML=`
+    <div class="stats-grid">
+      <div class="stat green"><div class="val">$${fmt(data.total_ventas)}</div><div class="lbl">Ventas</div></div>
+      <div class="stat"><div class="val">${data.total_pedidos}</div><div class="lbl">Pedidos</div></div>
+      <div class="stat blue"><div class="val">$${fmt(data.ticket_promedio)}</div><div class="lbl">Ticket promedio</div></div>
+      <div class="stat red"><div class="val">$${fmt(data.total_gastos)}</div><div class="lbl">Gastos</div></div>
+      <div class="stat ${neto>=0?'green':'red'}"><div class="val">$${fmt(neto)}</div><div class="lbl">Resultado neto</div></div>
+      <div class="stat"><div class="val">${data.datos_completos?.dias_con_ventas||0}</div><div class="lbl">Días con ventas</div></div>
+    </div>
+
+    <div class="reporte-grid">
+      <div class="reporte-card">
+        <h3>💳 Por método de pago</h3>
+        ${Object.entries(metodos).length ? Object.entries(metodos).map(([m,v])=>`
+          <div class="metodo-row">
+            <span>${metodosLabels[m]||m}</span>
+            <strong>$${fmt(v)}</strong>
+          </div>`).join('') : '<p style="color:#94a3b8;font-size:13px">Sin datos</p>'}
+      </div>
+
+      <div class="reporte-card">
+        <h3>🏆 Destacados</h3>
+        <div class="metodo-row"><span>🥇 Producto más vendido</span><strong>${esc(data.producto_mas_vendido||'—')}</strong></div>
+        <div class="metodo-row"><span>👑 Cliente más frecuente</span><strong>${esc(data.cliente_mas_frecuente||'—')}</strong></div>
+        <div class="metodo-row"><span>📅 Días con ventas</span><strong>${data.datos_completos?.dias_con_ventas||0}</strong></div>
+        <div class="metodo-row"><span>📋 Gastos registrados</span><strong>${data.datos_completos?.gastos_count||0}</strong></div>
+      </div>
+    </div>
+
+    ${Object.keys(data.pedidos_por_dia||{}).length ? `
+    <div class="card" style="margin-top:0">
+      <div class="card-title">📅 Ventas por día</div>
+      <div class="bar-chart">
+        ${Object.entries(data.pedidos_por_dia||{}).sort((a,b)=>a[0]<b[0]?-1:1).map(([dia,v])=>{
+          const pct = Math.max(4, (Number(v)/Math.max(...Object.values(data.pedidos_por_dia).map(Number)))*100);
+          const d = dia.split('-');
+          return `<div class="bar-row">
+            <span class="bar-label">${d[2]}/${d[1]}</span>
+            <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+            <span class="bar-val">$${fmt(v)}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>` : ''}
+  `;
+}
+
+async function exportarReporte(){
+  const periodo = document.getElementById('periodo-select').value;
+  const {data} = await sb.from('reportes_mensuales').select('*').eq('periodo',periodo).maybeSingle();
+  if(!data){toast('No hay reporte para exportar','warn');return;}
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const W=210,M=20;
+  const [y,m]=periodo.split('-');
+  const mes=new Date(y,m-1,1).toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+  doc.setFillColor(30,41,59);doc.rect(0,0,W,38,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(20);doc.setFont('helvetica','bold');
+  doc.text('REPORTE MENSUAL',M,16);
+  doc.setFontSize(12);doc.setFont('helvetica','normal');
+  doc.text(NEGOCIO.nombre+' — '+mes,M,25);
+  doc.text('Generado: '+new Date().toLocaleDateString('es-AR'),M,32);
+  let yy=50;
+  const row=(l,v,color=[30,41,59])=>{
+    doc.setFillColor(248,250,252);doc.rect(M,yy-4,W-2*M,10,'F');
+    doc.setFontSize(11);doc.setFont('helvetica','normal');doc.setTextColor(100,116,139);
+    doc.text(l,M+4,yy+2);doc.setTextColor(...color);doc.setFont('helvetica','bold');
+    doc.text(v,W-M-4,yy+2,{align:'right'});yy+=12;
+  };
+  doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(30,41,59);
+  doc.text('RESUMEN',M,yy);yy+=8;
+  row('Total ventas','$'+fmt(data.total_ventas),[22,163,74]);
+  row('Total pedidos',String(data.total_pedidos));
+  row('Ticket promedio','$'+fmt(data.ticket_promedio));
+  row('Total gastos','$'+fmt(data.total_gastos),[220,38,38]);
+  const neto=Number(data.resultado_neto||0);
+  row('Resultado neto','$'+fmt(neto),neto>=0?[22,163,74]:[220,38,38]);
+  yy+=6;
+  if(data.metodos_pago&&Object.keys(data.metodos_pago).length){
+    doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(30,41,59);
+    doc.text('POR MÉTODO DE PAGO',M,yy);yy+=8;
+    Object.entries(data.metodos_pago).forEach(([m,v])=>row(m.charAt(0).toUpperCase()+m.slice(1),'$'+fmt(v)));
+  }
+  yy+=6;
+  doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(30,41,59);
+  doc.text('DESTACADOS',M,yy);yy+=8;
+  if(data.producto_mas_vendido) row('Producto más vendido',data.producto_mas_vendido);
+  if(data.cliente_mas_frecuente) row('Cliente más frecuente',data.cliente_mas_frecuente);
+  doc.save(`reporte_${periodo}.pdf`);
+  toast('PDF exportado');
+}
+
+// ══════════════════════════════════════
+//  EMPLEADOS
+// ══════════════════════════════════════
+let empEditId = null;
+
+async function loadEmpleados(){
+  const {data}=await sb.from('empleados').select('*').order('apellido');
+  const el=document.getElementById('empleados-list');
+  if(!data||!data.length){el.innerHTML='<div class="empty">No hay empleados registrados</div>';return;}
+  el.innerHTML=`<table class="table">
+    <thead><tr><th>Nombre</th><th>Puesto</th><th>Teléfono</th><th>Ingreso</th><th>Sueldo base</th><th>Estado</th><th></th></tr></thead>
+    <tbody>${data.map(e=>`<tr>
+      <td><strong>${esc(e.apellido)}, ${esc(e.nombre)}</strong><br><small style="color:#94a3b8">${esc(e.dni?'DNI: '+e.dni:'')}</small></td>
+      <td>${esc(e.puesto||'—')}</td>
+      <td>${esc(e.telefono||'—')}</td>
+      <td>${e.fecha_ingreso?new Date(e.fecha_ingreso+'T12:00:00').toLocaleDateString('es-AR'):'—'}</td>
+      <td style="font-weight:700">$${fmt(e.sueldo_base)}</td>
+      <td><span class="badge ${e.activo?'badge-green':'badge-gray'}">${e.activo?'Activo':'Inactivo'}</span></td>
+      <td style="display:flex;gap:6px">
+        <button class="btn btn-gray btn-sm" onclick='editarEmpleado(${JSON.stringify(e)})'>✏️</button>
+        ${e.telefono?`<a href="https://wa.me/549${e.telefono.replace(/\D/g,'')}" target="_blank" class="btn btn-wa btn-sm">💬</a>`:''}
+      </td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function abrirModalEmpleado(emp){
+  empEditId = emp?.id||null;
+  document.getElementById('modal-emp-title').textContent = emp ? 'Editar empleado' : '+ Agregar empleado';
+  document.getElementById('emp-nombre').value = emp?.nombre||'';
+  document.getElementById('emp-apellido').value = emp?.apellido||'';
+  document.getElementById('emp-dni').value = emp?.dni||'';
+  document.getElementById('emp-tel').value = emp?.telefono||'';
+  document.getElementById('emp-puesto').value = emp?.puesto||'';
+  document.getElementById('emp-ingreso').value = emp?.fecha_ingreso||'';
+  document.getElementById('emp-sueldo').value = emp?.sueldo_base||'';
+  document.getElementById('emp-notas').value = emp?.notas||'';
+  abrirModal('modal-empleado');
+}
+function editarEmpleado(emp){ abrirModalEmpleado(emp); }
+
+async function guardarEmpleado(){
+  const nombre = document.getElementById('emp-nombre').value.trim();
+  const apellido = document.getElementById('emp-apellido').value.trim();
+  if(!nombre||!apellido){toast('Nombre y apellido requeridos','error');return;}
+  const payload={
+    nombre, apellido,
+    dni: document.getElementById('emp-dni').value||null,
+    telefono: document.getElementById('emp-tel').value||null,
+    puesto: document.getElementById('emp-puesto').value||null,
+    fecha_ingreso: document.getElementById('emp-ingreso').value||null,
+    sueldo_base: parseFloat(document.getElementById('emp-sueldo').value)||0,
+    notas: document.getElementById('emp-notas').value||null,
+  };
+  const op = empEditId
+    ? sb.from('empleados').update(payload).eq('id',empEditId)
+    : sb.from('empleados').insert(payload);
+  const {error}=await op;
+  if(error){toast('Error: '+error.message,'error');return;}
+  cerrarModal('modal-empleado'); empEditId=null;
+  toast(empEditId?'Empleado actualizado':'Empleado agregado');
+  loadEmpleados();
+}
+
+// ── Init ──────────────────────────────
+loadClientes();
+</script>
+</body>
+</html>
