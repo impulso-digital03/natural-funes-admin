@@ -404,6 +404,7 @@ document.getElementById('login-pass').addEventListener('keydown', e => {
 function doLogin() {
   const pass = document.getElementById('login-pass').value;
   if (pass === ADMIN_PASS) {
+    localStorage.setItem('admin_auth', ADMIN_PASS);
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     renderPedidos();
@@ -415,9 +416,17 @@ function doLogin() {
 }
 
 function doLogout() {
+  localStorage.removeItem('admin_auth');
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-pass').value = '';
+}
+
+// Auto-login si ya hay sesión guardada
+if (localStorage.getItem('admin_auth') === ADMIN_PASS) {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  renderPedidos();
 }
 
 // ═══════════════════════════════════════════════════════
